@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
+import { Show } from "@clerk/react";
 import { Gauge } from "@/components/gauge";
 import { AuditResult } from "@workspace/api-client-react";
-import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2 } from "lucide-react";
+import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X } from "lucide-react";
 
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
@@ -86,10 +87,36 @@ function CtaButton({ label, className = "" }: { label: string; className?: strin
   );
 }
 
+function SaveResultsBanner({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="relative flex items-center gap-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-3.5 rounded-xl shadow-md mb-8">
+      <BookmarkPlus className="w-5 h-5 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="font-semibold text-sm sm:text-base leading-tight">
+          Create a free account to save these results and track your progress over time.
+        </p>
+      </div>
+      <Link href="/sign-up">
+        <button className="flex-shrink-0 px-4 py-1.5 bg-white text-green-700 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors whitespace-nowrap">
+          Save Results
+        </button>
+      </Link>
+      <button
+        onClick={onDismiss}
+        className="flex-shrink-0 p-1 hover:bg-white/20 rounded-lg transition-colors"
+        aria-label="Dismiss"
+      >
+        <X className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function Results() {
   const [, setLocation] = useLocation();
   const [result, setResult] = useState<AuditResult | null>(null);
   const [category, setCategory] = useState("your industry");
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("geoboost_audit_result");
@@ -113,6 +140,10 @@ export default function Results() {
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4 md:px-8">
+      <Show when="signed-out">
+        {!bannerDismissed && <SaveResultsBanner onDismiss={() => setBannerDismissed(true)} />}
+      </Show>
+
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
           Audit Report for <span className="text-blue-600">{result.scrapedUrl}</span>
