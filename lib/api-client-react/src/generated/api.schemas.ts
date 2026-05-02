@@ -20,6 +20,8 @@ export interface AuditRequest {
    * @maxItems 3
    */
   queries: string[];
+  /** Business city or region (e.g. "Rochester, NY") */
+  location?: string;
   /** Submitter name for email capture */
   name: string;
   /** Submitter email for email capture */
@@ -75,6 +77,29 @@ export interface OptimizeResult {
   optimizedContent: string;
   /** List of specific changes made with explanations */
   changes: ContentChange[];
+}
+
+export interface DetectCategoryRequest {
+  /** The business website URL to detect category from */
+  url: string;
+}
+
+/**
+ * Confidence level of the detection
+ */
+export type DetectCategoryResultConfidence =
+  (typeof DetectCategoryResultConfidence)[keyof typeof DetectCategoryResultConfidence];
+
+export const DetectCategoryResultConfidence = {
+  high: "high",
+  low: "low",
+} as const;
+
+export interface DetectCategoryResult {
+  /** Detected business category, or null if not detected */
+  category: string | null;
+  /** Confidence level of the detection */
+  confidence: DetectCategoryResultConfidence;
 }
 
 export interface ApiError {

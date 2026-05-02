@@ -20,6 +20,8 @@ import type {
   ApiError,
   AuditRequest,
   AuditResult,
+  DetectCategoryRequest,
+  DetectCategoryResult,
   HealthStatus,
   OptimizeRequest,
   OptimizeResult,
@@ -194,6 +196,92 @@ export const useRunAudit = <
   TContext
 > => {
   return useMutation(getRunAuditMutationOptions(options));
+};
+
+/**
+ * @summary Detect business category from website URL
+ */
+export const getDetectCategoryUrl = () => {
+  return `/api/geoboost/detect-category`;
+};
+
+export const detectCategory = async (
+  detectCategoryRequest: DetectCategoryRequest,
+  options?: RequestInit,
+): Promise<DetectCategoryResult> => {
+  return customFetch<DetectCategoryResult>(getDetectCategoryUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(detectCategoryRequest),
+  });
+};
+
+export const getDetectCategoryMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof detectCategory>>,
+    TError,
+    { data: BodyType<DetectCategoryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof detectCategory>>,
+  TError,
+  { data: BodyType<DetectCategoryRequest> },
+  TContext
+> => {
+  const mutationKey = ["detectCategory"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof detectCategory>>,
+    { data: BodyType<DetectCategoryRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return detectCategory(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DetectCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof detectCategory>>
+>;
+export type DetectCategoryMutationBody = BodyType<DetectCategoryRequest>;
+export type DetectCategoryMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Detect business category from website URL
+ */
+export const useDetectCategory = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof detectCategory>>,
+    TError,
+    { data: BodyType<DetectCategoryRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof detectCategory>>,
+  TError,
+  { data: BodyType<DetectCategoryRequest> },
+  TContext
+> => {
+  return useMutation(getDetectCategoryMutationOptions(options));
 };
 
 /**

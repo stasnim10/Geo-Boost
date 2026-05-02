@@ -31,6 +31,10 @@ export const RunAuditBody = zod.object({
     .min(runAuditBodyQueriesMin)
     .max(runAuditBodyQueriesMax)
     .describe("Three target queries to rank for in AI answers"),
+  location: zod
+    .string()
+    .optional()
+    .describe('Business city or region (e.g. \"Rochester, NY\")'),
   name: zod.string().describe("Submitter name for email capture"),
   email: zod.string().email().describe("Submitter email for email capture"),
 });
@@ -64,6 +68,25 @@ export const RunAuditResponse = zod.object({
     .array(zod.string())
     .describe("Three competitor content patterns AI prefers"),
   scrapedUrl: zod.string().describe("The URL that was analyzed"),
+});
+
+/**
+ * @summary Detect business category from website URL
+ */
+export const DetectCategoryBody = zod.object({
+  url: zod
+    .string()
+    .describe("The business website URL to detect category from"),
+});
+
+export const DetectCategoryResponse = zod.object({
+  category: zod
+    .string()
+    .nullable()
+    .describe("Detected business category, or null if not detected"),
+  confidence: zod
+    .enum(["high", "low"])
+    .describe("Confidence level of the detection"),
 });
 
 /**

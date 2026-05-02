@@ -56,6 +56,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /geoboost/detect-category:
+    post:
+      operationId: detectCategory
+      tags: [geoboost]
+      summary: Detect business category from website URL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DetectCategoryRequest"
+      responses:
+        "200":
+          description: Detected category result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DetectCategoryResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /geoboost/optimize:
     post:
       operationId: optimizeContent
@@ -111,6 +135,9 @@ components:
           minItems: 3
           maxItems: 3
           description: Three target queries to rank for in AI answers
+        location:
+          type: string
+          description: Business city or region (e.g. "Rochester, NY")
         name:
           type: string
           description: Submitter name for email capture
@@ -210,6 +237,28 @@ components:
         - originalContent
         - optimizedContent
         - changes
+    DetectCategoryRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          description: The business website URL to detect category from
+      required:
+        - url
+    DetectCategoryResult:
+      type: object
+      properties:
+        category:
+          type: string
+          nullable: true
+          description: Detected business category, or null if not detected
+        confidence:
+          type: string
+          enum: [high, low]
+          description: Confidence level of the detection
+      required:
+        - category
+        - confidence
     ApiError:
       type: object
       properties:

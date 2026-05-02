@@ -17,6 +17,8 @@ export interface AuditRequest {
    * @maxItems 3
    */
   queries: string[];
+  /** Business city or region (e.g. "Rochester, NY") */
+  location?: string;
   /** Submitter name for email capture */
   name: string;
   /** Submitter email for email capture */
