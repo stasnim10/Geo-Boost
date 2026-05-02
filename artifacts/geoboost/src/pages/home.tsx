@@ -349,8 +349,9 @@ export default function Home() {
           <span className="text-slate-500">Find out why.</span>
         </h1>
         <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto">
-          Generative Engine Optimization (GEO) audit. Discover exactly why ChatGPT, Claude, and Perplexity are ignoring your business in their answers.
+          Find out if ChatGPT, Claude, and Google AI are recommending your business — or sending customers to your competitors instead.
         </p>
+        <p className="text-sm text-slate-400 mt-3">No tech knowledge needed. Results in 60 seconds.</p>
       </div>
 
       <div className="w-full max-w-xl bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
@@ -360,7 +361,7 @@ export default function Home() {
               <Loader2 className="w-12 h-12 text-blue-600 animate-spin mb-6" />
               <h3 className="text-2xl font-bold text-slate-900 mb-2">Analyzing {url}...</h3>
               <p className="text-slate-500 max-w-sm">
-                Scanning your content for semantic density, structural formatting, and AI visibility markers.
+                Checking how often AI recommends your business versus your competitors. This takes about 30–60 seconds.
               </p>
               <div className="w-full bg-slate-100 h-2 rounded-full mt-8 overflow-hidden">
                 <div className="bg-blue-600 h-full rounded-full animate-pulse" style={{ width: "60%" }} />
@@ -444,7 +445,8 @@ export default function Home() {
 
               {/* Queries */}
               <div className="space-y-3">
-                <Label className="text-slate-700 font-semibold">Target AI Queries (What your customers ask ChatGPT)</Label>
+                <Label className="text-slate-700 font-semibold">What Do Your Customers Ask AI?</Label>
+                <p className="text-xs text-slate-400">Type the questions your customers ask ChatGPT or Google when looking for a business like yours.</p>
                 <div className="space-y-2">
                   {[
                     { val: query1, set: setQuery1, ph: "Query 1" },
@@ -493,7 +495,7 @@ export default function Home() {
               </div>
 
               <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold bg-[#0f172a] hover:bg-slate-800 text-white">
-                Scan My Website
+                Check My AI Visibility — Free
               </Button>
             </form>
           ) : (

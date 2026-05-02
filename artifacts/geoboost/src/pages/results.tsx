@@ -356,33 +356,46 @@ export default function Results() {
         {!bannerDismissed && <SaveResultsBanner onDismiss={() => setBannerDismissed(true)} />}
       </Show>
 
-      <div className="mb-8 text-center">
+      <div className="mb-6 text-center">
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
-          Audit Report for <span className="text-blue-600">{result.scrapedUrl}</span>
+          Here is what we found for <span className="text-blue-600">{result.scrapedUrl}</span>
         </h1>
-        <p className="text-slate-500 mt-2 text-lg">AI engines are struggling to recommend your business.</p>
+        <p className="text-slate-500 mt-2 text-lg">AI assistants are recommending your competitors instead of you.</p>
+      </div>
+
+      {/* Plain-English intro card */}
+      <div className="mb-8 bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5 flex gap-4">
+        <span className="text-3xl flex-shrink-0">🤖</span>
+        <div>
+          <p className="font-bold text-slate-900 mb-1">What does this mean?</p>
+          <p className="text-slate-600 text-sm leading-relaxed">
+            Millions of people now ask AI assistants like ChatGPT, Claude, and Google to recommend local businesses.
+            We tested how often AI recommends <strong>{result.scrapedUrl}</strong> versus competitors for the searches your customers are already making.
+            Here is what we found — and what it means for your business.
+          </p>
+        </div>
       </div>
 
       {/* Score gauges */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
         <div className="col-span-1 md:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col md:flex-row items-center justify-between">
           <div className="text-center md:text-left mb-6 md:mb-0">
-            <h2 className="text-xl font-bold text-slate-900 mb-1">AI Visibility Score</h2>
-            <p className="text-slate-500 max-w-md">This score represents how likely AI models are to recommend your site for target queries.</p>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">How Often AI Recommends You</h2>
+            <p className="text-slate-500 max-w-md">Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor.</p>
           </div>
           <Gauge value={result.aiVisibilityScore} size={180} strokeWidth={16} className="mx-auto md:mx-0" />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
-          <h3 className="font-semibold text-slate-700 mb-4">Semantic Density</h3>
+          <h3 className="font-semibold text-slate-700 mb-4">Content Usefulness</h3>
           <Gauge value={result.semanticDensityScore} size={120} strokeWidth={10} />
-          <p className="text-xs text-slate-500 text-center mt-4">Measures depth of topic coverage</p>
+          <p className="text-xs text-slate-500 text-center mt-4">How much helpful, specific information AI can find on your page</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
-          <h3 className="font-semibold text-slate-700 mb-4">Structural Formatting</h3>
+          <h3 className="font-semibold text-slate-700 mb-4">AI Readability</h3>
           <Gauge value={result.structuralFormattingScore} size={120} strokeWidth={10} />
-          <p className="text-xs text-slate-500 text-center mt-4">Measures readability for AI parsers</p>
+          <p className="text-xs text-slate-500 text-center mt-4">How easily AI can read and understand your website</p>
         </div>
 
         <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
@@ -445,7 +458,7 @@ export default function Results() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5 text-red-500" />
-            <h3 className="text-xl font-bold text-slate-900">Critical Weaknesses</h3>
+            <h3 className="text-xl font-bold text-slate-900">Why AI Is Skipping Your Business</h3>
           </div>
           {result.weaknesses.map((weakness, i) => (
             <div key={i} className="bg-red-50 rounded-lg border border-red-100 p-4 flex gap-3">
@@ -460,7 +473,7 @@ export default function Results() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-5 h-5 text-blue-500" />
-            <h3 className="text-xl font-bold text-slate-900">What Competitors Do Differently</h3>
+            <h3 className="text-xl font-bold text-slate-900">What Top-Ranked Competitors Do That You Don't</h3>
           </div>
           {result.competitorPatterns.map((pattern, i) => (
             <div key={i} className="bg-blue-50 rounded-lg border border-blue-100 p-4 flex gap-3">
@@ -483,10 +496,10 @@ export default function Results() {
             </p>
             <div className="flex flex-wrap gap-3 mt-4">
               {[
-                { icon: "🔧", label: "Schema Markup" },
-                { icon: "📍", label: "GBP Copy" },
-                { icon: "📱", label: "Social Bios" },
-                { icon: "📄", label: "Content Brief" },
+                { icon: "🔧", label: "Business Info Code" },
+                { icon: "📍", label: "Google Business Listing" },
+                { icon: "📱", label: "Social Descriptions" },
+                { icon: "📄", label: "Website Fix Guide" },
               ].map(({ icon, label }) => (
                 <span key={label} className="flex items-center gap-1.5 text-xs font-semibold bg-white/10 rounded-lg px-3 py-1.5">
                   {icon} {label}

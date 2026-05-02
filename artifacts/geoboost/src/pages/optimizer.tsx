@@ -18,10 +18,10 @@ type ProgressStep = { label: string; done: boolean; active: boolean };
 
 function useProgressSteps(active: boolean) {
   const STEPS = [
-    "Analyzing your content",
-    "Identifying AI citation gaps",
-    "Rewriting for maximum visibility",
-    "Finalizing optimized draft",
+    "Reading your content",
+    "Finding what is stopping AI from recommending you",
+    "Rewriting for maximum AI visibility",
+    "Finalizing your AI-friendly version",
   ];
   const DELAYS = [0, 1200, 2400, 4200];
   const [step, setStep] = useState(-1);
@@ -121,8 +121,8 @@ export default function Optimizer() {
     <div className="max-w-6xl mx-auto py-10 px-4 md:px-8">
       {/* Page title */}
       <div className="mb-8">
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Content Optimizer</h1>
-        <p className="text-slate-500 mt-1">Re-structure your content so AI assistants cite you first.</p>
+        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Website Content Rewriter</h1>
+        <p className="text-slate-500 mt-1">Paste your current website text below. We will rewrite it so AI assistants are more likely to recommend your business.</p>
       </div>
 
       {!result ? (
@@ -181,7 +181,7 @@ export default function Optimizer() {
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-4">
             <div className="mb-4">
               <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-                Target queries <span className="text-slate-400 normal-case font-normal">(comma separated)</span>
+                What questions should AI recommend you for? <span className="text-slate-400 normal-case font-normal">(comma separated)</span>
               </label>
               <input
                 value={queries}
@@ -194,7 +194,7 @@ export default function Optimizer() {
             <div>
               <div className="flex items-center justify-between mb-2">
                 <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                  Website content
+                  Your Current Text
                 </label>
                 {content && (
                   <button
@@ -225,7 +225,7 @@ export default function Optimizer() {
           {/* ── STEP 3: Optimize button + progress ───────────────────────── */}
           {optimizeMutation.isPending ? (
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-8 py-8">
-              <p className="text-sm font-semibold text-slate-700 mb-5 text-center">Optimizing your content…</p>
+              <p className="text-sm font-semibold text-slate-700 mb-5 text-center">Rewriting your content for AI…</p>
               <div className="space-y-3 max-w-sm mx-auto">
                 {steps.map((s, i) => (
                   <div key={i} className="flex items-center gap-3">
@@ -252,7 +252,7 @@ export default function Optimizer() {
               style={{ backgroundColor: content.trim() && queries.trim() ? "#22c55e" : undefined }}
               className="w-full py-4 text-white font-extrabold text-lg rounded-xl hover:opacity-90 transition-opacity disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed shadow-sm"
             >
-              Optimize My Content for AI
+              Rewrite My Content for AI
             </button>
           )}
 
@@ -283,7 +283,7 @@ export default function Optimizer() {
             {/* Original */}
             <div className="flex flex-col rounded-xl border border-slate-200 overflow-hidden shadow-sm">
               <div className="bg-slate-100 px-5 py-3 border-b border-slate-200 font-semibold text-slate-600 text-sm">
-                Original Content
+                Your Current Text
               </div>
               <div className="p-5 overflow-y-auto max-h-[480px] font-mono text-xs leading-relaxed text-slate-500 whitespace-pre-wrap bg-slate-50">
                 {result.originalContent}
@@ -294,7 +294,7 @@ export default function Optimizer() {
             <div className="flex flex-col rounded-xl border border-green-200 overflow-hidden shadow-sm ring-1 ring-green-500/20">
               <div className="bg-green-50 px-5 py-3 border-b border-green-200 font-semibold text-green-800 text-sm flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4" />
-                Optimized Content
+                AI-Friendly Version
               </div>
               <div className="p-5 overflow-y-auto max-h-[480px] font-mono text-xs leading-relaxed text-slate-900 whitespace-pre-wrap">
                 {result.optimizedContent}
@@ -307,7 +307,7 @@ export default function Optimizer() {
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-6">
               <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Download className="w-4 h-4 text-slate-500" />
-                Changes Made
+                What We Changed and Why
                 <span className="ml-1 text-xs font-normal text-slate-400">({result.changes.length} improvements)</span>
               </h3>
               <div className="space-y-3">
@@ -343,7 +343,7 @@ export default function Optimizer() {
                 {[
                   { step: 1, text: "Copy the optimized content using the button above." },
                   { step: 2, text: "Log into your website CMS (WordPress, Shopify, Webflow, etc.) and replace your current page content." },
-                  { step: 3, text: "Wait 2–4 weeks for AI crawlers like GPTBot and ClaudeBot to re-index your page." },
+                  { step: 3, text: "Wait 2–4 weeks for AI systems to re-read your updated page and start recommending you." },
                   { step: 4, text: "Come back and run a new audit to measure your score improvement." },
                 ].map(({ step, text }) => (
                   <li key={step} className="flex items-start gap-3">

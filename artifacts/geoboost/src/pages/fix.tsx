@@ -105,8 +105,8 @@ function SchemaSection({ ctx, unlocked }: { ctx: FixContext; unlocked: boolean }
   useEffect(() => { if (unlocked) load(); }, [unlocked]);
 
   return (
-    <SectionShell icon={<Globe className="w-5 h-5 text-blue-600" />} title="Schema Markup Code"
-      subtitle="Paste into your website <head> — tells AI crawlers exactly what your business is."
+    <SectionShell icon={<Globe className="w-5 h-5 text-blue-600" />} title="Tell AI What Your Business Is"
+      subtitle="This is hidden code that goes on your website. It tells AI assistants your business name, location, hours, and category in a language they understand perfectly. Copy this and give it to your web developer, or paste it yourself."
       status={status} error={error} onRetry={load}>
       {data && (
         <div className="space-y-4">
@@ -161,8 +161,8 @@ function GBPSection({ ctx, unlocked }: { ctx: FixContext; unlocked: boolean }) {
   useEffect(() => { if (unlocked) load(); }, [unlocked]);
 
   return (
-    <SectionShell icon={<BarChart2 className="w-5 h-5 text-orange-500" />} title="Google Business Profile Copy"
-      subtitle="Optimized GBP description, 5 ready-to-post updates, and 3 Q&A pairs — copy and paste directly."
+    <SectionShell icon={<BarChart2 className="w-5 h-5 text-orange-500" />} title="Your Google Business Listing"
+      subtitle="These are ready-to-use descriptions and posts for your free Google Business listing — the one that shows up on Google Maps. Keeping this updated helps AI recommend you for local searches."
       status={status} error={error} onRetry={load}>
       {data && (
         <div className="space-y-5">
@@ -250,8 +250,8 @@ function SocialSection({ ctx, unlocked }: { ctx: FixContext; unlocked: boolean }
   ] : [];
 
   return (
-    <SectionShell icon={<Zap className="w-5 h-5 text-purple-500" />} title="AI-Optimized Social Bios"
-      subtitle="Fact-dense bios for every platform — include your location, category, and a specific differentiator."
+    <SectionShell icon={<Zap className="w-5 h-5 text-purple-500" />} title="Your Social Media Descriptions"
+      subtitle="AI assistants also read your social media profiles. These optimized descriptions help AI understand what your business does and where you are — ready to copy and paste."
       status={status} error={error} onRetry={load}>
       {data && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -335,8 +335,8 @@ function BriefSection({ ctx, unlocked }: { ctx: FixContext; unlocked: boolean })
   };
 
   return (
-    <SectionShell icon={<FileText className="w-5 h-5 text-green-600" />} title="Your Complete Content Fix Brief"
-      subtitle="Executive summary, specific rewrites for each weakness, paragraphs to add, and a full FAQ — ready to paste."
+    <SectionShell icon={<FileText className="w-5 h-5 text-green-600" />} title="Your Website Fix Guide"
+      subtitle="A plain-English guide showing exactly what to change on your website, with the new content already written for you. No writing required — just copy and paste."
       status={status} error={error} onRetry={load}>
       {data && (
         <div className="space-y-6">
@@ -547,10 +547,10 @@ export default function FixPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
               {[
-                { icon: "🔧", label: "Schema Markup" },
-                { icon: "📍", label: "GBP Copy" },
-                { icon: "📱", label: "Social Bios" },
-                { icon: "📄", label: "Content Brief" },
+                { icon: "🔧", label: "Business Info Code" },
+                { icon: "📍", label: "Google Business Listing" },
+                { icon: "📱", label: "Social Descriptions" },
+                { icon: "📄", label: "Website Fix Guide" },
               ].map(({ icon, label }) => (
                 <div key={label} className="flex items-center gap-2 bg-white/10 rounded-xl px-3 py-2.5">
                   <span className="text-lg">{icon}</span>
@@ -588,10 +588,10 @@ export default function FixPage() {
       {!unlocked && (
         <div className="space-y-4">
           {[
-            { icon: <Globe className="w-5 h-5 text-blue-600" />, title: "Schema Markup Code", locked: true },
-            { icon: <BarChart2 className="w-5 h-5 text-orange-500" />, title: "Google Business Profile Copy", locked: true },
-            { icon: <Zap className="w-5 h-5 text-purple-500" />, title: "AI-Optimized Social Bios", locked: true },
-            { icon: <FileText className="w-5 h-5 text-green-600" />, title: "Your Complete Content Fix Brief", locked: true },
+            { icon: <Globe className="w-5 h-5 text-blue-600" />, title: "Tell AI What Your Business Is", locked: true },
+            { icon: <BarChart2 className="w-5 h-5 text-orange-500" />, title: "Your Google Business Listing", locked: true },
+            { icon: <Zap className="w-5 h-5 text-purple-500" />, title: "Your Social Media Descriptions", locked: true },
+            { icon: <FileText className="w-5 h-5 text-green-600" />, title: "Your Website Fix Guide", locked: true },
           ].map(({ icon, title }) => (
             <div key={title} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden opacity-60 select-none">
               <div className="px-6 py-5 flex items-center gap-4">

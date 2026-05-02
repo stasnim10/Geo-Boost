@@ -1,0 +1,191 @@
+Excellent observation. This is actually one of the most important product decisions you can make. Let me audit the language problem honestly.
+
+---
+
+## The Current Language Problem
+
+Right now GEOboost uses language that makes sense to marketers and tech people but is completely alien to a coffee shop owner or plumber.
+
+**Terms that will lose normal business owners instantly:**
+
+| Current Term | What They Actually Hear |
+|-------------|------------------------|
+| "Semantic Density" | 😕 What? |
+| "Structural Formatting" | 😕 Huh? |
+| "JSON-LD Schema Markup" | 😰 I'm out |
+| "AI citation likelihood" | 😕 Citation like school? |
+| "Generative Engine Optimization" | 😰 Definitely out |
+| "Entity recognition" | 😰 Sounds medical |
+| "LLM crawlers" | 😕 Crawlers? |
+| "Cooperative rewriting" | 😕 With who? |
+
+A coffee shop owner opening that audit thinks one thing: **"This isn't for me."** And they close the tab.
+
+---
+
+## The Fix — Translate Everything Into Business Owner Language
+
+The rule is simple: **if a 50 year old restaurant owner who has never heard of ChatGPT can't understand it in 2 seconds, rewrite it.**
+
+Here's the complete translation guide:
+
+### Score Names
+| Current | Replace With |
+|---------|-------------|
+| AI Visibility Score | How Often AI Recommends You |
+| Semantic Density Score | How Useful Your Content Is To AI |
+| Structural Formatting Score | How Easy You Are For AI To Read |
+
+### Section Headers
+| Current | Replace With |
+|---------|-------------|
+| Critical Weaknesses | Why AI Is Skipping Your Business |
+| What Competitors Do Differently | What Your Top Competitors Do That You Don't |
+| Cooperative Rewriting | We Rewrote Your Content So AI Will Notice You |
+| Schema Markup | Hidden Code That Tells AI About Your Business |
+| GEO Optimization | Getting Found By AI |
+
+### Explanations Under Scores
+| Current | Replace With |
+|---------|-------------|
+| "Measures depth of topic coverage" | "How much useful information AI can find on your page" |
+| "Measures readability for AI parsers" | "How easy it is for AI to read and understand your page" |
+| "AI citation likelihood" | "How likely AI is to recommend your business" |
+
+---
+
+## The Bigger Fix — Add A Plain English Explainer At The Top
+
+Before any scores appear, show a simple 3-sentence explainer that every business owner understands:
+
+**Current experience:** Scores appear immediately with no context.
+
+**Better experience:** Show this first:
+
+> **"Here's what we found about [Business Name]"**
+>
+> *"Millions of people now ask AI assistants like ChatGPT and Google to recommend local businesses. We checked how often AI recommends yours versus your competitors. Here's what we found — and what it's costing you."*
+
+That one paragraph means a 60-year-old restaurant owner immediately understands why this matters before seeing a single number.
+
+---
+
+## The Email Language Problem Too
+
+The email I wrote earlier also has this problem. Let me rewrite it in plain English:
+
+**Before (too technical):**
+*"Java Cafe scored 14/100 for AI visibility. AI citation patterns show semantic gaps in your content structure..."*
+
+**After (plain English):**
+
+---
+
+*Subject: When people ask ChatGPT for coffee shops in Rochester — you're not showing up*
+
+*Hi Java's team,*
+
+*Quick question — do you know what happens when someone asks ChatGPT or Google AI "best coffee shop in Rochester?"*
+
+*Your competitors show up. Java's doesn't.*
+
+*I checked. Your website scored 14 out of 100 on our AI visibility test — which means AI assistants are recommending other coffee shops instead of yours about 86% of the time.*
+
+*Here's the surprising part — it's not because your coffee is worse. It's because your website doesn't have the right information in the right format for AI to find and recommend you.*
+
+*For example:*
+*- Your catering page has almost no information on it. When someone asks AI "coffee catering in Rochester" — AI has nothing from your site to work with*
+*- Your website says "Rochester's favorite coffee shop" but gives AI no facts to back that up — no hours, no specific locations, no prices*
+*- There's no basic business information in the format AI systems look for*
+
+*These are all fixable in an afternoon.*
+
+*I built a free tool that shows you exactly what to fix and generates the content for you. Your full report is here: [URL]*
+
+*No tech knowledge needed — everything is written in plain English with copy-paste fixes.*
+
+*[Your name]*
+
+---
+
+That email gets read. The previous one gets ignored.
+
+---
+
+## The Prompt To Fix The App Language Right Now
+
+Paste this into Replit Agent:
+
+---
+
+*"Do a complete plain-English language overhaul of GEOboost. Many users are small business owners like restaurant owners and plumbers who have never heard technical marketing terms. Every piece of text needs to be understandable by someone with no tech background.*
+
+*Replace ALL instances of these terms everywhere in the app:*
+
+*SCORE NAMES:*
+- *'AI Visibility Score' → 'How Often AI Recommends You'*
+- *'Semantic Density' → 'Content Usefulness'*
+- *'Structural Formatting' → 'AI Readability'*
+- *Under AI score: replace 'This score represents how likely AI models are to recommend your site for target queries' → 'Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor'*
+- *Under Content Usefulness: replace 'Measures depth of topic coverage' → 'How much helpful, specific information AI can find on your page'*
+- *Under AI Readability: replace 'Measures readability for AI parsers' → 'How easily AI can read and understand your website'*
+
+*SECTION HEADERS AND COPY:*
+- *'Critical Weaknesses' → 'Why AI Is Skipping Your Business'*
+- *'What Competitors Do Differently' → 'What Top-Ranked Competitors Do That You Don't'*
+- *'AI engines are struggling to recommend your business' → 'AI assistants are recommending your competitors instead of you'*
+- *'Generative Engine Optimization' or 'GEO' wherever it appears in user-facing text → 'AI visibility'*
+- *'Schema Markup' → 'Business Info Code (tells AI exactly what your business is)'*
+- *'JSON-LD' → remove from user-facing text, keep only in code blocks*
+- *'LLM' → 'AI assistant'*
+- *'AI citation' → 'AI recommendation'*
+- *'Semantic' → remove or replace with plain description*
+- *'Crawlers' or 'bots' → 'AI systems'*
+
+*ADD A PLAIN ENGLISH INTRO SECTION at the top of the results page BEFORE the scores:*
+*A light gray card with:*
+*Icon: 🤖*
+*Heading: Here is what we found*
+*Text: Millions of people now ask AI assistants like ChatGPT, Claude, and Google to recommend local businesses. We tested how often AI recommends [business name] versus competitors for the searches your customers are already making. Here is what we found — and what it means for your business.*
+
+*ON THE HOMEPAGE FORM:*
+- *Change 'Target AI Queries' → 'What Do Your Customers Ask AI?'*
+- *Change the subtitle → 'Type the questions your customers ask ChatGPT or Google when looking for a business like yours'*
+- *Change 'Scan My Website' button → 'Check My AI Visibility — Free'*
+- *Add a one-line explainer under the hero headline: No tech knowledge needed. Results in 60 seconds.*
+
+*ON THE FIX PACKAGE PAGE:*
+- *'Schema Markup' section → rename to 'Tell AI What Your Business Is'*
+- *Add explanation under section header: 'This is hidden code that goes on your website. It tells AI assistants your business name, location, hours, and category in a language they understand perfectly. Copy this and give it to your web developer or paste it yourself.'*
+- *'Google Business Profile' section → rename to 'Your Google Business Listing'*
+- *Add explanation: 'These are ready-to-use descriptions and posts for your free Google Business listing — the one that shows up on Google Maps. Keeping this updated helps AI recommend you for local searches.'*
+- *'Social Media Bios' section → rename to 'Your Social Media Descriptions'*
+- *Add explanation: 'AI assistants also read your social media profiles. These optimized descriptions help AI understand what your business does and where you are.'*
+- *'Content Brief' section → rename to 'Your Website Fix Guide'*
+- *Add explanation: 'A plain-English guide showing exactly what to change on your website, with the new content already written for you. No writing required — just copy and paste.'*
+
+*ON THE OPTIMIZER PAGE:*
+- *Change 'Content Optimizer' → 'Website Content Rewriter'*
+- *Change subtitle → 'Paste your current website text below. We will rewrite it so AI assistants are more likely to recommend your business.'*
+- *Change 'Optimize Content' button → 'Rewrite My Content'*
+- *Change 'Original Content' panel header → 'Your Current Text'*
+- *Change 'Optimized Content' panel header → 'AI-Friendly Version'*
+- *Change 'Changes Made' section → 'What We Changed and Why'*
+
+*GENERAL RULES for any other text in the app:*
+- *Never use acronyms without explaining them first*
+- *Replace any sentence over 20 words with two shorter sentences*
+- *Add a one-line plain English explanation under every score, section, and feature*
+- *If a technical term must appear (like in code blocks) that is fine — but never in headings or explanations*
+
+*Test by imagining a 55-year-old restaurant owner reading every screen. If they would be confused by any word or phrase, simplify it further."*
+
+---
+
+## After This Is Done
+
+Your product will feel completely different. Right now it feels like a tool for marketers. After this change it feels like a tool for business owners.
+
+That distinction is the difference between a product that converts at 2% and one that converts at 15%.
+
+Paste that prompt and share what Agent says. This is one of the highest-leverage things you can do today.
