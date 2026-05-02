@@ -1,0 +1,51 @@
+Feature by Feature Analysis
+Feature 1 — Auto Category Detection ✅ Build It Now
+Verdict: Yes, build this today.
+This is pure UX improvement with zero API cost. When someone pastes their URL, you scrape the page and detect the category automatically from the content — keywords, meta tags, page title, description. User sees the category pre-filled and just confirms or edits it.
+Why it matters: Reduces friction on the most important field. Less friction = more audits completed = more conversions.
+How it works without API cost:
+
+Scrape the URL (already doing this for the audit)
+Look for meta keywords, og:type, business schema markup, and common category keywords in the text
+Match against your 11 category list
+Pre-fill the field with a "Detected: Restaurant & Cafe ✓" label
+
+Prompt for Replit Agent:
+"When a URL is submitted on the homepage, after scraping the page content, run a category detection function BEFORE calling Claude. The function should scan the scraped text and meta tags for category keywords and match to the closest category from this list: Restaurant/Cafe, Retail/E-commerce, Marketing Agency, SaaS/Software, Legal Services, Medical/Healthcare, Real Estate, Trades/Home Services, Hospitality/Hotel, Fitness/Wellness, Consulting. Pre-fill the Business Category field with the detected category and add a small gray label underneath saying 'Auto-detected — edit if needed'. Do this with pure JavaScript string matching, no API call required."
+
+Feature 2 — Suggested Target Queries ✅ Build It Now
+Verdict: Yes, build this today.
+This solves a real problem — most users have no idea what queries to enter. They'll leave the field blank or enter weak queries, which makes the audit less useful and reduces their wow moment.
+How it works:
+Once category is detected, show 6-8 suggested queries below the query fields as clickable chips. User clicks one and it populates the field. No API cost — just a hardcoded list per category.
+Example for Restaurant/Cafe:
+
+"best coffee shops in [city]"
+"best brunch spots near me"
+"coffee shops with WiFi in [city]"
+"best espresso in [city]"
+"coffee catering services [city]"
+
+Prompt for Replit Agent:
+"After category auto-detection, show a row of clickable query suggestion chips below the three target query inputs. Each chip shows a suggested question for that category. Clicking a chip populates the next empty query field. Use this hardcoded data: Restaurant/Cafe: ['best coffee shops in [city]', 'best brunch spots near me', 'coffee shops with WiFi', 'best espresso near me', 'coffee catering services'], Agency: ['best digital marketing agency in [city]', 'top SEO agencies near me', 'affordable marketing agencies for small business'], SaaS: ['best project management software', 'top CRM tools for small business', 'affordable [category] software'], and so on for all 11 categories. Replace [city] with the user's detected or entered location. Style chips as small rounded gray pills that turn green when selected."
+
+Feature 3 — Location Mode ✅ Build It Now
+Verdict: Yes, but keep it simple on day one.
+Location context dramatically improves audit accuracy for local businesses. A coffee shop in Rochester competing locally is very different from one trying to rank nationally.
+Day one version — just add a location field:
+Simple text input: "Your city or region (optional)" — defaults to detected location from browser if they allow it. This gets passed into the Claude audit prompt to make scores and recommendations location-specific.
+Don't build: Complex geo-filtering dashboards, multi-region comparison, map visualizations. That's a month-two feature.
+Prompt for Replit Agent:
+"Add a location field to the audit form between Business Category and Target Queries. Label it 'Your City or Region' with placeholder 'e.g. Rochester, NY'. Add a small 'Detect My Location' button next to it that uses the browser Geolocation API to get the user's city (reverse geocode using a free API like nominatim.openstreetmap.org — no API key required). Pass this location into the Claude audit prompt by adding to the system prompt: 'The business is located in [location]. Factor this into your analysis — consider local competition, regional search patterns, and location-specific AI query behavior.'"
+
+Feature 4 — MCP Integration for Premium Tier 🟡 Plan It, Don't Build Yet
+Verdict: Brilliant long-term vision. Wrong timing for today.
+Here's the honest assessment:
+Why it's a great idea:
+This is exactly the "one layer deeper" pattern we identified throughout our research. Every GEO tool stops at analysis. You'd be the first to actually fix the problems automatically — not just on the website content but across the entire digital footprint: website copy, Google Business Profile, social media bios, schema markup, backlink anchor text.
+Using MCPs you could connect to:
+
+Website CMS (WordPress, Shopify, Webflow) to push optimized content directly
+Google Business Profile API to update descriptions and posts
+Social media APIs to update bios and pinned posts
+Schema markup generators to add structured data automatically

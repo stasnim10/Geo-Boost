@@ -1,0 +1,28 @@
+Paste this into Replit Agent right now:
+
+---
+
+*"The /optimizer page is not loading at all — it returns a blank page or error. Please:*
+
+*1. Check if the optimizer page file exists at app/optimizer/page.tsx or pages/optimizer.tsx and show me what's in it*
+
+*2. If it doesn't exist, create it from scratch with:*
+- *A dark navy header matching the rest of the site with 'GEOboost' logo linking back to homepage*
+- *Page title: 'AI Content Optimizer'*
+- *Subtitle: 'Paste your content below and we'll rewrite it to get cited by ChatGPT, Claude and Perplexity'*
+- *A large textarea placeholder: 'Paste your current webpage content here...' minimum 300px height*
+- *Three text inputs labeled 'Target Query 1', 'Target Query 2', 'Target Query 3'*
+- *A large green button: 'Optimize My Content'*
+- *When clicked, send the content and queries to a new API route at /api/optimize*
+- *The /api/optimize route calls Claude with this system prompt: 'You are a GEO expert. Rewrite the provided content to maximize AI citation likelihood. Apply these rules: 1) Add definition-first answers to every likely query 2) Replace vague marketing language with specific facts and numbers 3) Add clear headers matching search intent 4) Bold key entities and specifications 5) Add a FAQ section with direct Q&A format 6) Increase factual density throughout. Return a JSON object with: optimizedContent (full rewritten content as a string) and changes (array of objects each with: original, replacement, reason)'*
+- *Display results as two side-by-side panels: left shows original content, right shows optimized content*
+- *Below panels: a Changes Made section listing each change with original → replacement and one sentence reason*
+- *A green Copy Optimized Content button that copies the right panel text to clipboard*
+
+*3. Make sure the route is properly registered in the app router*
+
+*4. Test it internally before confirming it works"*
+
+---
+
+This should rebuild the optimizer page completely from scratch and fix the routing issue. Share what Replit Agent says once it's done.
