@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Gauge } from "@/components/gauge";
 import { AuditResult } from "@workspace/api-client-react";
-import { AlertTriangle, TrendingUp, ArrowRight, Zap, DollarSign } from "lucide-react";
+import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2 } from "lucide-react";
 
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
 
-  // Categorize and set economic parameters
   let monthlyQueries = 2500;
   let conversionRate = 0.015;
   let avgTransaction = 60;
@@ -36,7 +35,6 @@ function estimateMonthlyLoss(score: number, category: string): { amount: number;
     monthlyQueries = 1400; conversionRate = 0.009; avgTransaction = 900;
   }
 
-  // Queries being won vs lost based on score
   const visibilityRate = score / 100;
   const missedQueries = monthlyQueries * (1 - visibilityRate);
   const amount = Math.round(missedQueries * conversionRate * avgTransaction);
@@ -48,6 +46,44 @@ function formatMoney(n: number): string {
   if (n >= 10000) return `$${(n / 1000).toFixed(0)}k`;
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
   return `$${n.toLocaleString()}`;
+}
+
+function useCheckout() {
+  const [loading, setLoading] = useState(false);
+
+  const startCheckout = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/create-checkout-session", { method: "POST" });
+      const data = await res.json() as { url?: string; error?: string };
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        alert(data.error || "Could not start checkout. Please try again.");
+        setLoading(false);
+      }
+    } catch {
+      alert("Network error. Please try again.");
+      setLoading(false);
+    }
+  }, []);
+
+  return { loading, startCheckout };
+}
+
+function CtaButton({ label, className = "" }: { label: string; className?: string }) {
+  const { loading, startCheckout } = useCheckout();
+  return (
+    <button
+      onClick={startCheckout}
+      disabled={loading}
+      style={{ backgroundColor: loading ? undefined : "#10B981" }}
+      className={`flex items-center justify-center gap-2 hover:opacity-90 text-white font-bold rounded-lg transition-opacity disabled:bg-slate-400 disabled:cursor-not-allowed ${className}`}
+    >
+      {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+      {loading ? "Redirecting to checkout…" : label}
+    </button>
+  );
 }
 
 export default function Results() {
@@ -65,7 +101,7 @@ export default function Results() {
     try {
       setResult(JSON.parse(stored));
       if (storedCategory) setCategory(storedCategory);
-    } catch (e) {
+    } catch {
       setLocation("/");
     }
   }, [setLocation]);
@@ -109,15 +145,12 @@ export default function Results() {
         <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
           <h3 className="text-xl font-bold mb-2">Ready to fix this?</h3>
           <p className="text-slate-300 text-sm mb-6">Start ranking in ChatGPT and Claude today.</p>
-          <button
-            style={{ backgroundColor: "#10B981" }}
-            className="w-full hover:opacity-90 text-white font-bold h-12 text-base rounded-lg transition-opacity"
-          >
-            Optimize My Content — $149/month
-          </button>
-          <a href="/optimizer" className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white underline transition-colors">
-            or try the free optimizer tool
-          </a>
+          <CtaButton label="Optimize My Content — $149/month" className="w-full h-12 text-base" />
+          <Link href="/optimizer">
+            <span className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white underline transition-colors cursor-pointer">
+              or try the free optimizer tool
+            </span>
+          </Link>
         </div>
       </div>
 
@@ -159,12 +192,7 @@ export default function Results() {
               <strong>GEOboost costs $149/month.</strong> If it recovers even one lost customer per month,
               it pays for itself. At average performance, customers see 3–6x ROI within 60 days.
             </p>
-            <button
-              style={{ backgroundColor: "#10B981" }}
-              className="flex-shrink-0 hover:opacity-90 text-white font-bold px-6 py-3 rounded-lg transition-opacity text-sm whitespace-nowrap"
-            >
-              Fix This Now — $149/mo
-            </button>
+            <CtaButton label="Fix This Now — $149/mo" className="flex-shrink-0 px-6 py-3 text-sm whitespace-nowrap" />
           </div>
         </div>
       </div>
@@ -193,7 +221,7 @@ export default function Results() {
           </div>
           {result.competitorPatterns.map((pattern, i) => (
             <div key={i} className="bg-blue-50 rounded-lg border border-blue-100 p-4 flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                 <Zap className="w-3 h-3" />
               </div>
               <p className="text-blue-900 text-sm">{pattern}</p>
@@ -208,16 +236,13 @@ export default function Results() {
         <p className="text-slate-400 mb-6 max-w-xl mx-auto">
           GEOboost rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking.
         </p>
-        <button
-          style={{ backgroundColor: "#10B981" }}
-          className="hover:opacity-90 text-white font-bold px-10 py-4 rounded-lg transition-opacity text-lg"
-        >
-          Optimize My Content — $149/month
-        </button>
+        <CtaButton label="Optimize My Content — $149/month" className="px-10 py-4 text-lg mx-auto" />
         <div className="mt-4">
-            <a href="/optimizer" className="text-slate-400 hover:text-white text-sm underline transition-colors">
-            or try the free optimizer tool
-          </a>
+          <Link href="/optimizer">
+            <span className="text-slate-400 hover:text-white text-sm underline transition-colors cursor-pointer">
+              or try the free optimizer tool
+            </span>
+          </Link>
         </div>
       </div>
     </div>

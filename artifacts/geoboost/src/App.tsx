@@ -6,6 +6,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import Results from "@/pages/results";
 import Optimizer from "@/pages/optimizer";
+import Success from "@/pages/success";
+import Cancel from "@/pages/cancel";
 import { Layout } from "@/components/layout";
 
 const queryClient = new QueryClient();
@@ -17,6 +19,8 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/results" component={Results} />
         <Route path="/optimizer" component={Optimizer} />
+        <Route path="/success" component={Success} />
+        <Route path="/cancel" component={Cancel} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
