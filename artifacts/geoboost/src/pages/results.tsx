@@ -55,11 +55,14 @@ export default function Results() {
         <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
           <h3 className="text-xl font-bold mb-2">Ready to fix this?</h3>
           <p className="text-slate-300 text-sm mb-6">Start ranking in ChatGPT and Claude today.</p>
-          <Button className="w-full bg-[#22c55e] hover:bg-green-600 text-white font-bold h-12 text-md border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
-            Optimize My Content — $149/mo
-          </Button>
-          <Link href="/optimizer" className="text-center mt-4 text-xs font-medium text-slate-400 hover:text-white transition-colors">
-            Try the Optimizer Tool <ArrowRight className="inline w-3 h-3 ml-1" />
+          <button
+            style={{ backgroundColor: "#10B981" }}
+            className="w-full hover:opacity-90 text-white font-bold h-12 text-base rounded-lg transition-opacity"
+          >
+            Optimize My Content — $149/month
+          </button>
+          <Link href="/optimizer" className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white transition-colors">
+            or try the free optimizer tool <ArrowRight className="inline w-3 h-3 ml-1" />
           </Link>
         </div>
       </div>
