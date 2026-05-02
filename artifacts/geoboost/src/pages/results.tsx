@@ -417,13 +417,16 @@ export default function Results() {
           <h2 className="text-white font-bold text-lg">What This Is Costing You</h2>
         </div>
         <div className="bg-red-50 p-6 md:p-8">
-          <p className="text-red-900 text-base leading-relaxed mb-6">
+          <p className="text-red-900 text-base leading-relaxed mb-4">
             Based on your AI Visibility Score of <strong>{result.aiVisibilityScore}/100</strong>, AI assistants
             are recommending competitors over you approximately{" "}
             <strong>{invisibilityRate}% of the time</strong>. For a business in the{" "}
             <strong>{category}</strong> category, this invisibility typically costs an estimated{" "}
             <strong className="text-red-700 text-lg">{formatMoney(roi.amount)}/month</strong> in revenue
             going directly to competitors who rank higher in AI answers.
+          </p>
+          <p className="text-red-800 text-sm leading-relaxed mb-6 bg-red-100 rounded-lg px-4 py-3 border border-red-200">
+            💡 <strong>Here's the opportunity:</strong> For searches in the <strong>{category}</strong> category, AI typically recommends <strong>5 different businesses</strong> per answer — not just one winner. Right now you're not one of them. GEOboost helps you claim one of those citation spots before your competitors do.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

@@ -18,6 +18,7 @@ import SharedResultsPage from "@/pages/shared";
 import Upgrade from "@/pages/upgrade";
 import FixPage from "@/pages/fix";
 import FixSuccess from "@/pages/fix-success";
+import Compare from "@/pages/compare";
 
 const queryClient = new QueryClient();
 
@@ -164,6 +165,7 @@ function Router() {
         <Route path="/upgrade" component={Upgrade} />
         <Route path="/fix" component={FixPage} />
         <Route path="/fix-success" component={FixSuccess} />
+        <Route path="/compare" component={Compare} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

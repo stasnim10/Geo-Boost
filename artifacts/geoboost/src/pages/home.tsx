@@ -524,6 +524,36 @@ export default function Home() {
           )}
         </div>
       </div>
+
+      {/* Research Stat Banner */}
+      <div className="w-full max-w-3xl mt-10">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            {
+              stat: "48%",
+              desc: "of businesses cited by AI don't even rank on Google's first page",
+              sub: "AI is a completely different playing field",
+            },
+            {
+              stat: "5",
+              desc: "businesses cited per AI answer on average",
+              sub: "There are always open citation slots",
+            },
+            {
+              stat: "61%",
+              desc: "of AI answers use bullet-point lists",
+              sub: "Structure beats length every time",
+            },
+          ].map(({ stat, desc, sub }) => (
+            <div key={stat} className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-5 text-center">
+              <div className="text-4xl font-extrabold text-slate-900 mb-1">{stat}</div>
+              <div className="text-sm font-semibold text-slate-700 leading-snug mb-1">{desc}</div>
+              <div className="text-xs text-slate-400">{sub}</div>
+            </div>
+          ))}
+        </div>
+        <p className="text-center text-xs text-slate-400 mt-3">Source: Surfer SEO study of 405,576 Google AI overview searches</p>
+      </div>
     </div>
   );
 }

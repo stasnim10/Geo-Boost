@@ -56,14 +56,36 @@ function detectCategoryFromText(text: string): { category: string | null; confid
   return { category: null, confidence: "low" };
 }
 
-async function scrapeUrl(url: string): Promise<string> {
+interface ScrapeResult {
+  text: string;
+  listCount: number;
+  hasShortAnswerSections: boolean;
+}
+
+async function scrapeUrlFull(url: string): Promise<ScrapeResult> {
   const response = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; GEOboost/1.0; +https://geoboost.app)" },
     signal: AbortSignal.timeout(15000),
   });
   if (!response.ok) throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
   const html = await response.text();
-  return html
+
+  const listMatches = html.match(/<(ul|ol|li)[^>]*>/gi);
+  const listCount = listMatches ? listMatches.length : 0;
+
+  const paragraphRe = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  let hasShortAnswerSections = false;
+  let pMatch: RegExpExecArray | null;
+  while ((pMatch = paragraphRe.exec(html)) !== null) {
+    const text = pMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    const wordCount = text.split(/\s+/).filter(Boolean).length;
+    if (wordCount >= 30 && wordCount <= 200) {
+      hasShortAnswerSections = true;
+      break;
+    }
+  }
+
+  const text = html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<nav[\s\S]*?<\/nav>/gi, "")
@@ -73,6 +95,13 @@ async function scrapeUrl(url: string): Promise<string> {
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'")
     .replace(/\s+/g, " ").trim().slice(0, 8000);
+
+  return { text, listCount, hasShortAnswerSections };
+}
+
+async function scrapeUrl(url: string): Promise<string> {
+  const result = await scrapeUrlFull(url);
+  return result.text;
 }
 
 async function scrapeMetadata(url: string): Promise<string> {
@@ -136,14 +165,16 @@ router.post("/geoboost/audit", async (req, res): Promise<void> => {
   const { url, category, queries, name, email, location } = parsed.data;
   req.log.info({ url, category, location, name, email }, "Starting audit");
 
-  let scrapedContent: string;
+  let scrapeResult: ScrapeResult;
   try {
-    scrapedContent = await scrapeUrl(url);
+    scrapeResult = await scrapeUrlFull(url);
   } catch (err) {
     req.log.warn({ err, url }, "Failed to scrape URL");
     res.status(400).json({ error: "Could not access website", details: err instanceof Error ? err.message : "Unknown error" });
     return;
   }
+
+  const scrapedContent = scrapeResult.text;
 
   if (!scrapedContent || scrapedContent.length < 50) {
     res.status(400).json({ error: "Could not extract content from website", details: "The page appears to have no readable text content." });
@@ -154,10 +185,19 @@ router.post("/geoboost/audit", async (req, res): Promise<void> => {
     ? `The business is located in ${location}. Factor local search intent into your analysis.`
     : "";
 
+  const structuralContext = `
+Structural metrics detected on this page:
+- List/bullet structures found: ${scrapeResult.listCount} (ul, ol, li elements). Research shows 61% of AI overview answers use unordered bullet lists. Low list count is a significant weakness.
+- Contains concise answer sections (30-200 word paragraphs that directly address questions): ${scrapeResult.hasShortAnswerSections ? "Yes" : "No"}. AI overviews average 157 words and prefer pages with clear, concise direct answers.
+
+If list count is below 3, you MUST include a weakness about the lack of bullet points/lists.
+If there are no concise answer sections, you MUST include a weakness about the lack of direct answer content.`;
+
   const systemPrompt = `You are an AI visibility analyst. Evaluate how well a business's web content is optimized to be cited by AI assistants like ChatGPT, Claude, and Perplexity.
 
 Be brutally honest. Most small business websites score 10-35. A score above 70 is genuinely excellent.
 ${locationContext}
+${structuralContext}
 
 Return valid JSON:
 {
@@ -181,6 +221,8 @@ Scraped page content:
 ---
 ${scrapedContent}
 ---
+
+Structural data: ${scrapeResult.listCount} list elements detected, concise answer sections: ${scrapeResult.hasShortAnswerSections ? "present" : "absent"}.
 
 Return the JSON audit result. Be specific and brutal — reference actual text from their page.`;
 
