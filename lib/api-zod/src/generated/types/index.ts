@@ -6,4 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from "./apiError";
+export * from "./auditRequest";
+export * from "./auditResult";
+export * from "./contentChange";
 export * from "./healthStatus";
+export * from "./optimizeRequest";
+export * from "./optimizeResult";

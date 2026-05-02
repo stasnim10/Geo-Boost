@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "GEOboost"
+version = "1.0.0"
+id = "artifacts/geoboost"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18846
+
+[services.development]
+run = "pnpm --filter @workspace/geoboost run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/geoboost", "run", "build" ]
+publicDir = "artifacts/geoboost/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18846"
+BASE_PATH = "/"

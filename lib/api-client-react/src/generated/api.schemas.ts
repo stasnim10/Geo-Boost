@@ -8,3 +8,76 @@
 export interface HealthStatus {
   status: string;
 }
+
+export interface AuditRequest {
+  /** The business website URL to audit */
+  url: string;
+  /** Business category (e.g. "premium laptop bags") */
+  category: string;
+  /**
+   * Three target queries to rank for in AI answers
+   * @minItems 3
+   * @maxItems 3
+   */
+  queries: string[];
+  /** Submitter name for email capture */
+  name: string;
+  /** Submitter email for email capture */
+  email: string;
+}
+
+export interface AuditResult {
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  aiVisibilityScore: number;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  semanticDensityScore: number;
+  /**
+   * @minimum 0
+   * @maximum 100
+   */
+  structuralFormattingScore: number;
+  /** Three specific weaknesses found in the content */
+  weaknesses: string[];
+  /** Three competitor content patterns AI prefers */
+  competitorPatterns: string[];
+  /** The URL that was analyzed */
+  scrapedUrl: string;
+}
+
+export interface OptimizeRequest {
+  /** The current page content to optimize */
+  content: string;
+  /** Target queries to optimize for */
+  queries: string[];
+  /** Business category for context */
+  category?: string;
+}
+
+export interface ContentChange {
+  /** Type of change (e.g. "definition-first", "specificity", "structure", "bold-entity", "faq") */
+  type: string;
+  /** Why this change improves AI visibility */
+  reason: string;
+  /** The original text snippet */
+  original?: string;
+  /** The optimized text snippet */
+  optimized?: string;
+}
+
+export interface OptimizeResult {
+  originalContent: string;
+  optimizedContent: string;
+  /** List of specific changes made with explanations */
+  changes: ContentChange[];
+}
+
+export interface ApiError {
+  error: string;
+  details?: string;
+}

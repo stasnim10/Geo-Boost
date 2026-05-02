@@ -5,18 +5,28 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  MutationFunction,
   QueryFunction,
   QueryKey,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { HealthStatus } from "./api.schemas";
+import type {
+  ApiError,
+  AuditRequest,
+  AuditResult,
+  HealthStatus,
+  OptimizeRequest,
+  OptimizeResult,
+} from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
-import type { ErrorType } from "../custom-fetch";
+import type { ErrorType, BodyType } from "../custom-fetch";
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -99,3 +109,175 @@ export function useHealthCheck<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Audit a business website for AI visibility
+ */
+export const getRunAuditUrl = () => {
+  return `/api/geoboost/audit`;
+};
+
+export const runAudit = async (
+  auditRequest: AuditRequest,
+  options?: RequestInit,
+): Promise<AuditResult> => {
+  return customFetch<AuditResult>(getRunAuditUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(auditRequest),
+  });
+};
+
+export const getRunAuditMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runAudit>>,
+    TError,
+    { data: BodyType<AuditRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof runAudit>>,
+  TError,
+  { data: BodyType<AuditRequest> },
+  TContext
+> => {
+  const mutationKey = ["runAudit"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof runAudit>>,
+    { data: BodyType<AuditRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return runAudit(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RunAuditMutationResult = NonNullable<
+  Awaited<ReturnType<typeof runAudit>>
+>;
+export type RunAuditMutationBody = BodyType<AuditRequest>;
+export type RunAuditMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Audit a business website for AI visibility
+ */
+export const useRunAudit = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof runAudit>>,
+    TError,
+    { data: BodyType<AuditRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof runAudit>>,
+  TError,
+  { data: BodyType<AuditRequest> },
+  TContext
+> => {
+  return useMutation(getRunAuditMutationOptions(options));
+};
+
+/**
+ * @summary Optimize content for AI visibility
+ */
+export const getOptimizeContentUrl = () => {
+  return `/api/geoboost/optimize`;
+};
+
+export const optimizeContent = async (
+  optimizeRequest: OptimizeRequest,
+  options?: RequestInit,
+): Promise<OptimizeResult> => {
+  return customFetch<OptimizeResult>(getOptimizeContentUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(optimizeRequest),
+  });
+};
+
+export const getOptimizeContentMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof optimizeContent>>,
+    TError,
+    { data: BodyType<OptimizeRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof optimizeContent>>,
+  TError,
+  { data: BodyType<OptimizeRequest> },
+  TContext
+> => {
+  const mutationKey = ["optimizeContent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof optimizeContent>>,
+    { data: BodyType<OptimizeRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return optimizeContent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type OptimizeContentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof optimizeContent>>
+>;
+export type OptimizeContentMutationBody = BodyType<OptimizeRequest>;
+export type OptimizeContentMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Optimize content for AI visibility
+ */
+export const useOptimizeContent = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof optimizeContent>>,
+    TError,
+    { data: BodyType<OptimizeRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof optimizeContent>>,
+  TError,
+  { data: BodyType<OptimizeRequest> },
+  TContext
+> => {
+  return useMutation(getOptimizeContentMutationOptions(options));
+};

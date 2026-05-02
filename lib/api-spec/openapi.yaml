@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: geoboost
+    description: GEOboost AI visibility audit and optimization
 paths:
   /healthz:
     get:
@@ -24,6 +26,66 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /geoboost/audit:
+    post:
+      operationId: runAudit
+      tags: [geoboost]
+      summary: Audit a business website for AI visibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AuditRequest"
+      responses:
+        "200":
+          description: Audit results with scores and weaknesses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuditResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /geoboost/optimize:
+    post:
+      operationId: optimizeContent
+      tags: [geoboost]
+      summary: Optimize content for AI visibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OptimizeRequest"
+      responses:
+        "200":
+          description: Optimized content with highlighted changes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OptimizeResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +95,127 @@ components:
           type: string
       required:
         - status
-
+    AuditRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          description: The business website URL to audit
+        category:
+          type: string
+          description: Business category (e.g. "premium laptop bags")
+        queries:
+          type: array
+          items:
+            type: string
+          minItems: 3
+          maxItems: 3
+          description: Three target queries to rank for in AI answers
+        name:
+          type: string
+          description: Submitter name for email capture
+        email:
+          type: string
+          format: email
+          description: Submitter email for email capture
+      required:
+        - url
+        - category
+        - queries
+        - name
+        - email
+    AuditResult:
+      type: object
+      properties:
+        aiVisibilityScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        semanticDensityScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        structuralFormattingScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        weaknesses:
+          type: array
+          items:
+            type: string
+          description: Three specific weaknesses found in the content
+        competitorPatterns:
+          type: array
+          items:
+            type: string
+          description: Three competitor content patterns AI prefers
+        scrapedUrl:
+          type: string
+          description: The URL that was analyzed
+      required:
+        - aiVisibilityScore
+        - semanticDensityScore
+        - structuralFormattingScore
+        - weaknesses
+        - competitorPatterns
+        - scrapedUrl
+    OptimizeRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: The current page content to optimize
+        queries:
+          type: array
+          items:
+            type: string
+          description: Target queries to optimize for
+        category:
+          type: string
+          description: Business category for context
+      required:
+        - content
+        - queries
+    ContentChange:
+      type: object
+      properties:
+        type:
+          type: string
+          description: Type of change (e.g. "definition-first", "specificity", "structure", "bold-entity", "faq")
+        reason:
+          type: string
+          description: Why this change improves AI visibility
+        original:
+          type: string
+          description: The original text snippet
+        optimized:
+          type: string
+          description: The optimized text snippet
+      required:
+        - type
+        - reason
+    OptimizeResult:
+      type: object
+      properties:
+        originalContent:
+          type: string
+        optimizedContent:
+          type: string
+        changes:
+          type: array
+          items:
+            $ref: "#/components/schemas/ContentChange"
+          description: List of specific changes made with explanations
+      required:
+        - originalContent
+        - optimizedContent
+        - changes
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: string
+        details:
+          type: string
+      required:
+        - error

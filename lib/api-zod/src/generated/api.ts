@@ -14,3 +14,85 @@ import * as zod from "zod";
 export const HealthCheckResponse = zod.object({
   status: zod.string(),
 });
+
+/**
+ * @summary Audit a business website for AI visibility
+ */
+export const runAuditBodyQueriesMin = 3;
+export const runAuditBodyQueriesMax = 3;
+
+export const RunAuditBody = zod.object({
+  url: zod.string().describe("The business website URL to audit"),
+  category: zod
+    .string()
+    .describe('Business category (e.g. \"premium laptop bags\")'),
+  queries: zod
+    .array(zod.string())
+    .min(runAuditBodyQueriesMin)
+    .max(runAuditBodyQueriesMax)
+    .describe("Three target queries to rank for in AI answers"),
+  name: zod.string().describe("Submitter name for email capture"),
+  email: zod.string().email().describe("Submitter email for email capture"),
+});
+
+export const runAuditResponseAiVisibilityScoreMin = 0;
+export const runAuditResponseAiVisibilityScoreMax = 100;
+
+export const runAuditResponseSemanticDensityScoreMin = 0;
+export const runAuditResponseSemanticDensityScoreMax = 100;
+
+export const runAuditResponseStructuralFormattingScoreMin = 0;
+export const runAuditResponseStructuralFormattingScoreMax = 100;
+
+export const RunAuditResponse = zod.object({
+  aiVisibilityScore: zod
+    .number()
+    .min(runAuditResponseAiVisibilityScoreMin)
+    .max(runAuditResponseAiVisibilityScoreMax),
+  semanticDensityScore: zod
+    .number()
+    .min(runAuditResponseSemanticDensityScoreMin)
+    .max(runAuditResponseSemanticDensityScoreMax),
+  structuralFormattingScore: zod
+    .number()
+    .min(runAuditResponseStructuralFormattingScoreMin)
+    .max(runAuditResponseStructuralFormattingScoreMax),
+  weaknesses: zod
+    .array(zod.string())
+    .describe("Three specific weaknesses found in the content"),
+  competitorPatterns: zod
+    .array(zod.string())
+    .describe("Three competitor content patterns AI prefers"),
+  scrapedUrl: zod.string().describe("The URL that was analyzed"),
+});
+
+/**
+ * @summary Optimize content for AI visibility
+ */
+export const OptimizeContentBody = zod.object({
+  content: zod.string().describe("The current page content to optimize"),
+  queries: zod.array(zod.string()).describe("Target queries to optimize for"),
+  category: zod.string().optional().describe("Business category for context"),
+});
+
+export const OptimizeContentResponse = zod.object({
+  originalContent: zod.string(),
+  optimizedContent: zod.string(),
+  changes: zod
+    .array(
+      zod.object({
+        type: zod
+          .string()
+          .describe(
+            'Type of change (e.g. \"definition-first\", \"specificity\", \"structure\", \"bold-entity\", \"faq\")',
+          ),
+        reason: zod.string().describe("Why this change improves AI visibility"),
+        original: zod.string().optional().describe("The original text snippet"),
+        optimized: zod
+          .string()
+          .optional()
+          .describe("The optimized text snippet"),
+      }),
+    )
+    .describe("List of specific changes made with explanations"),
+});

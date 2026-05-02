@@ -1,0 +1,86 @@
+Build a web application called GEOboost. The app helps small businesses optimize their content to be cited more often by AI assistants like ChatGPT, Claude, and Perplexity.
+The app has two main features:
+FEATURE 1 — FREE AUDIT PAGE
+A clean landing page with a form that collects:
+
+Business website URL
+Business category (e.g. "premium laptop bags", "HVAC services")
+Three target queries the user wants to rank for in AI answers
+
+When submitted, the app:
+
+Scrapes the text content from the submitted URL using a fetch request
+Sends the scraped content plus the three queries to the Claude API (claude-sonnet-4-20250514)
+Claude analyzes the content and returns a JSON object with:
+
+An AI Visibility Score from 0-100
+Semantic Density Score from 0-100
+Structural Formatting Score from 0-100
+Three specific weaknesses found in the current content
+Three competitor content patterns the AI prefers over theirs
+
+
+Display these results in a clean dashboard with score gauges, the three weaknesses listed clearly, and a prominent CTA button: "Optimize My Content — $149/month"
+
+FEATURE 2 — OPTIMIZER PAGE (shown after signup/payment placeholder)
+A page where the user pastes their current page content into a text area.
+When they click Optimize, the app:
+
+Sends the content plus their target queries to the Claude API
+Claude rewrites the content following these specific rules baked into the system prompt:
+
+Add definition-first answers to every likely AI query
+Convert vague marketing language into specific factual claims with numbers
+Add structured sections with clear headers that match query intent
+Bold key entities and specifications
+Add a FAQ section at the bottom formatted as direct Q&A
+Increase semantic density by adding specific data points
+
+
+Show a side-by-side comparison: original content on the left, optimized on the right
+Highlight every change in the optimized version with a tooltip explaining WHY that change improves AI visibility
+Add a one-click copy button for the optimized content
+
+DESIGN: Clean, modern SaaS aesthetic. Dark navy header, white cards, green accent color for scores and CTAs. Mobile responsive. No complex animations.
+TECH STACK: Next.js, Tailwind CSS, Claude API for all AI features. Store nothing in a database for now — this is a stateless MVP.
+Add a simple email capture before showing audit results — just name and email, no password required."
+
+What You'll Have After 24 Hours
+A working product that:
+
+Audits any webpage for AI visibility in 60 seconds
+Gives a clear score with specific weaknesses
+Rewrites content with explained changes
+Captures emails for follow-up
+Has a payment CTA ready to connect to Stripe
+
+
+The Go-To-Market Plan For Week One
+Day 1 — Build
+Get the Replit app working. Test it on 10 real websites yourself. Make sure the audit scores feel meaningful and the rewrites are genuinely better.
+Day 2 — Validate
+Run free audits on 20 businesses in your network. Don't ask them to pay. Ask for feedback. Watch their reaction when they see their score. If they immediately ask "how do I improve this?" — you have product market fit.
+Day 3 — First Revenue
+Post on LinkedIn: "I built a tool that tells you if AI assistants are recommending your business. Ran it on 20 companies this week. Average score was 23/100. Here's what the ones scoring above 70 do differently. Free audit link in comments."
+That post will get you your first 10 paying customers if you have any network at all.
+Day 4-7 — Distribution
+
+Post in r/entrepreneur, r/SEO, r/smallbusiness
+Find every "GEO" or "AI SEO" thread on Twitter/X and add genuine value then mention your tool
+Email 50 digital marketing agencies with a free audit of their own website
+Submit to Product Hunt on day 7
+
+
+Pricing Structure
+Free: One audit per domain per month. No optimizer access.
+Starter — $99/month: Unlimited audits. Optimizer for up to 10 pages/month. Email support.
+Growth — $299/month: Unlimited everything. Weekly automated re-audits. Priority support.
+Agency — $799/month: White label. Up to 25 client domains. Resell as your own product.
+
+The 6-Month Revenue Target
+MonthFocusTarget MRR1First 20 paying users$2,0002Agency channel opens$6,0003Product Hunt + press$15,0004Referral program live$25,0005First enterprise deals$40,0006Monitoring layer shipped$60,000
+
+The One Thing That Will Make or Break This
+The audit score has to feel real and scary.
+If someone enters their URL and gets 73/100 they shrug and leave. If they get 18/100 with three specific sentences explaining exactly why AI assistants are recommending their competitors instead of them — they panic and upgrade.
+Spend 80% of your prompt engineering time making the audit brutal, specific, and undeniably accurate. That's your entire sales funnel in one feature.
