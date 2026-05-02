@@ -115,9 +115,9 @@ export default function Results() {
           >
             Optimize My Content — $149/month
           </button>
-          <Link href="/optimizer" className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white transition-colors">
-            or try the free optimizer tool <ArrowRight className="inline w-3 h-3 ml-1" />
-          </Link>
+          <a href="/optimizer" className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white underline transition-colors">
+            or try the free optimizer tool
+          </a>
         </div>
       </div>
 
@@ -215,9 +215,9 @@ export default function Results() {
           Optimize My Content — $149/month
         </button>
         <div className="mt-4">
-          <Link href="/optimizer" className="text-slate-400 hover:text-white text-sm transition-colors">
-            or try the free optimizer tool <ArrowRight className="inline w-3 h-3 ml-1" />
-          </Link>
+            <a href="/optimizer" className="text-slate-400 hover:text-white text-sm underline transition-colors">
+            or try the free optimizer tool
+          </a>
         </div>
       </div>
     </div>
