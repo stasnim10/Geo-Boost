@@ -68,6 +68,18 @@ export const RunAuditResponse = zod.object({
     .array(zod.string())
     .describe("Three competitor content patterns AI prefers"),
   scrapedUrl: zod.string().describe("The URL that was analyzed"),
+  bingIndexed: zod
+    .boolean()
+    .optional()
+    .describe(
+      "Whether the domain is indexed in Bing (ChatGPT uses Bing to find sources)",
+    ),
+  blockedBots: zod
+    .array(zod.string())
+    .optional()
+    .describe(
+      "List of AI crawlers blocked in robots.txt (e.g. GPTBot, ClaudeBot)",
+    ),
 });
 
 /**

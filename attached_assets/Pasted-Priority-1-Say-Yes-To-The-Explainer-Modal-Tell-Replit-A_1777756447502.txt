@@ -1,0 +1,36 @@
+Priority 1 — Say Yes To The Explainer Modal
+Tell Replit Agent yes to the "Why Am I Scoring Low?" modal. Here's why it matters: right now users see their score and feel confused or overwhelmed. The modal converts confusion into action. It's a high-leverage UX improvement that directly increases conversion to paid.
+Priority 2 — Add The Bing Indexing Check
+This is the single most impactful new feature you can add today. Paste this into Replit Agent after the modal is done:
+
+"Add a Bing indexing check to the GEOboost audit. This is critical because ChatGPT uses Bing's index to find sources — if a business isn't indexed in Bing, ChatGPT cannot cite them.
+Here is exactly what to build:
+AUDIT CHECK:
+When a URL is submitted for audit, run a Bing indexing check by fetching this URL server-side: https://www.bing.com/search?q=site:[their-domain] and checking if the response contains results or a 'no results' indication. Do this in parallel with the existing scrape.
+If Bing returns no results for their domain, add a CRITICAL BLOCKER warning at the very top of the results page — above the scores — in a red banner:
+Header: Your Business Is Invisible To ChatGPT
+Text: ChatGPT uses Bing to find businesses to recommend. We checked and your website does not appear in Bing's index — meaning ChatGPT cannot recommend you no matter how good your content is. This must be fixed first before anything else.
+Button: Get Step-By-Step Fix Instructions — expands a panel with:
+
+Step 1: Go to bing.com/webmasters and sign in with a Microsoft account
+Step 2: Add your website URL
+Step 3: Download your sitemap (explain what a sitemap is in one sentence)
+Step 4: Submit your sitemap in Bing Webmaster Tools
+Step 5: Wait 48-72 hours for Bing to crawl your site
+Step 6: Come back and run a new audit
+
+If Bing DOES return results, show a small green checkmark badge on the results page labeled: Bing Indexed — ChatGPT Can Find You with a brief explanation.
+ADD TO THE FIX PACKAGE:
+In the Fix Package at /fix, add a new Section 0 — Foundation Check — that appears before the Schema section:
+Header: Step 1 Before Anything Else — Make Sure ChatGPT Can Find You
+Show their Bing indexing status with green checkmark or red warning
+If not indexed, show the same step by step instructions
+Explain: All the content optimization in the world will not help if ChatGPT cannot find your website. Getting indexed in Bing takes 10 minutes and is completely free.
+ADD BING STATUS TO AUDIT SCORE:
+If the site is not indexed in Bing, automatically set the AI Visibility Score to a maximum of 20 regardless of content quality, with explanation: Even perfect content scores low if ChatGPT cannot access it.
+Test by checking a known indexed domain like javascafe.com and a fake domain that would not be indexed."
+
+Priority 3 — Add Google Search Console Check
+Same logic applies to Google AI Overviews. If their site blocks Googlebot or GPTBot in robots.txt, they are invisible. Add this check too:
+
+"Add a robots.txt check to the audit. Fetch the submitted domain's robots.txt file and check if it blocks GPTBot, ClaudeBot, or PerplexityBot. If any AI crawler is blocked, show a red warning: 'Your website is blocking AI crawlers — you have told AI assistants not to read your content.' Include fix instructions showing exactly which lines to remove from robots.txt."

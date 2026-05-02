@@ -11,6 +11,8 @@ interface FixContext {
   aiVisibilityScore: number;
   semanticDensityScore: number;
   structuralFormattingScore: number;
+  bingIndexed?: boolean;
+  blockedBots?: string[];
 }
 
 interface SchemaData { schema: string }
@@ -479,6 +481,7 @@ export default function FixPage() {
       const r = JSON.parse(stored) as {
         scrapedUrl?: string; aiVisibilityScore?: number;
         semanticDensityScore?: number; structuralFormattingScore?: number; weaknesses?: string[];
+        bingIndexed?: boolean; blockedBots?: string[];
       };
       const q = storedQ ? (JSON.parse(storedQ) as string[]) : [];
       setCtx({
@@ -490,6 +493,8 @@ export default function FixPage() {
         aiVisibilityScore: r.aiVisibilityScore ?? 0,
         semanticDensityScore: r.semanticDensityScore ?? 0,
         structuralFormattingScore: r.structuralFormattingScore ?? 0,
+        bingIndexed: r.bingIndexed,
+        blockedBots: r.blockedBots,
       });
     } catch { navigate("/"); }
 
@@ -530,6 +535,51 @@ export default function FixPage() {
           </div>
         )}
       </div>
+
+      {/* Foundation Check — Section 0 */}
+      {ctx.bingIndexed !== undefined && (
+        <div className={`mb-8 rounded-2xl overflow-hidden border-2 ${ctx.bingIndexed ? "border-green-300" : "border-red-400"}`}>
+          <div className={`px-6 py-4 flex items-center gap-3 ${ctx.bingIndexed ? "bg-green-600" : "bg-red-600"}`}>
+            <span className="text-2xl">{ctx.bingIndexed ? "✅" : "🚨"}</span>
+            <div>
+              <h2 className="text-white font-extrabold text-base leading-tight">
+                {ctx.bingIndexed ? "Step 0 — Foundation: ChatGPT Can Find You" : "Step 0 — Do This First: ChatGPT Cannot Find You"}
+              </h2>
+              <p className={`text-sm mt-0.5 ${ctx.bingIndexed ? "text-green-100" : "text-red-100"}`}>
+                {ctx.bingIndexed ? "Your site is indexed in Bing — the directory ChatGPT uses" : "This must be fixed before any content optimization will help"}
+              </p>
+            </div>
+          </div>
+          <div className={`px-6 py-5 ${ctx.bingIndexed ? "bg-green-50" : "bg-red-50"}`}>
+            {ctx.bingIndexed ? (
+              <p className="text-green-900 text-sm leading-relaxed">
+                <strong>Good news:</strong> Your website appears in Bing's index, so ChatGPT is able to find and recommend your business. Now the content fixes below will make a real difference.
+              </p>
+            ) : (
+              <>
+                <p className="text-red-900 text-sm leading-relaxed mb-4">
+                  <strong>ChatGPT uses Bing to find businesses to recommend.</strong> Your website does not appear in Bing's index — meaning all the content optimization in the world will not help until this is fixed. The good news: it takes 10 minutes and is completely free.
+                </p>
+                <div className="space-y-3">
+                  {[
+                    { step: 1, text: "Go to bing.com/webmasters and sign in with a Microsoft account (free)." },
+                    { step: 2, text: `Add your website: ${ctx.url}` },
+                    { step: 3, text: "Download your sitemap. A sitemap lists every page on your site so search engines can find them. WordPress users: install Yoast SEO and your sitemap is at yoursite.com/sitemap.xml." },
+                    { step: 4, text: "Submit your sitemap in Bing Webmaster Tools under 'Sitemaps'." },
+                    { step: 5, text: "Wait 48–72 hours for Bing to crawl your site." },
+                    { step: 6, text: "Run a new GEOboost audit — your score will update automatically." },
+                  ].map(({ step, text }) => (
+                    <div key={step} className="flex gap-3 items-start">
+                      <div className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{step}</div>
+                      <p className="text-sm text-red-900 leading-relaxed">{text}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Locked banner */}
       {!unlocked && (

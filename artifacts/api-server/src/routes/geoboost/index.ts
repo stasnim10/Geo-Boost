@@ -157,6 +157,62 @@ router.post("/geoboost/detect-category", async (req, res): Promise<void> => {
   }
 });
 
+// ─── infrastructure checks ────────────────────────────────────────────────────
+async function checkBingIndexed(domain: string): Promise<boolean> {
+  try {
+    const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+    const response = await fetch(`https://www.bing.com/search?q=site:${cleanDomain}&setmkt=en-US`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: AbortSignal.timeout(8000),
+    });
+    const html = await response.text();
+    const noResults =
+      html.includes("There are no results for") ||
+      html.includes("No webpage was found for the web address") ||
+      html.includes("Make sure all words are spelled correctly") ||
+      (html.includes("no-results") && !html.includes("b_algo"));
+    return !noResults;
+  } catch {
+    return true;
+  }
+}
+
+async function checkRobotsTxt(url: string): Promise<string[]> {
+  try {
+    const { origin } = new URL(url);
+    const response = await fetch(`${origin}/robots.txt`, {
+      headers: { "User-Agent": "GEOboost/1.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!response.ok) return [];
+    const text = await response.text();
+    const blockedBots: string[] = [];
+    const bots = ["GPTBot", "ClaudeBot", "PerplexityBot", "ChatGPT-User", "Anthropic-AI", "Google-Extended"];
+    const lines = text.split("\n");
+    let currentAgent: string | null = null;
+    for (const raw of lines) {
+      const line = raw.trim();
+      const agentMatch = line.match(/^User-agent:\s*(.+)/i);
+      if (agentMatch) {
+        currentAgent = agentMatch[1].trim();
+        continue;
+      }
+      const disallowMatch = line.match(/^Disallow:\s*\//i);
+      if (disallowMatch && currentAgent) {
+        const matched = bots.find(b => currentAgent!.toLowerCase() === b.toLowerCase());
+        if (matched && !blockedBots.includes(matched)) blockedBots.push(matched);
+      }
+    }
+    return blockedBots;
+  } catch {
+    return [];
+  }
+}
+
 // ─── audit ────────────────────────────────────────────────────────────────────
 router.post("/geoboost/audit", async (req, res): Promise<void> => {
   const parsed = RunAuditBody.safeParse(req.body);
@@ -227,12 +283,16 @@ Structural data: ${scrapeResult.listCount} list elements detected, concise answe
 Return the JSON audit result. Be specific and brutal — reference actual text from their page.`;
 
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 8192,
-      messages: [{ role: "user", content: userPrompt }],
-      system: systemPrompt,
-    });
+    const [message, bingIndexed, blockedBots] = await Promise.all([
+      anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 8192,
+        messages: [{ role: "user", content: userPrompt }],
+        system: systemPrompt,
+      }),
+      checkBingIndexed(url),
+      checkRobotsTxt(url),
+    ]);
 
     const responseText = message.content[0].type === "text" ? message.content[0].text : "";
     const jsonMatch = responseText.match(/\{[\s\S]*\}/);
@@ -246,13 +306,21 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
       competitorPatterns: string[];
     };
 
+    let aiVisibilityScore = Math.min(100, Math.max(0, auditData.aiVisibilityScore));
+    if (!bingIndexed) {
+      aiVisibilityScore = Math.min(20, aiVisibilityScore);
+      req.log.info({ url }, "Bing not indexed — capping score at 20");
+    }
+
     const auditResponse = {
-      aiVisibilityScore: Math.min(100, Math.max(0, auditData.aiVisibilityScore)),
+      aiVisibilityScore,
       semanticDensityScore: Math.min(100, Math.max(0, auditData.semanticDensityScore)),
       structuralFormattingScore: Math.min(100, Math.max(0, auditData.structuralFormattingScore)),
       weaknesses: auditData.weaknesses.slice(0, 3),
       competitorPatterns: auditData.competitorPatterns.slice(0, 3),
       scrapedUrl: url,
+      bingIndexed,
+      blockedBots,
     };
 
     req.log.info({ url, score: auditResponse.aiVisibilityScore }, "Audit complete");

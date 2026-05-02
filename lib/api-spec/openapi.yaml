@@ -179,6 +179,14 @@ components:
         scrapedUrl:
           type: string
           description: The URL that was analyzed
+        bingIndexed:
+          type: boolean
+          description: Whether the domain is indexed in Bing (ChatGPT uses Bing to find sources)
+        blockedBots:
+          type: array
+          items:
+            type: string
+          description: List of AI crawlers blocked in robots.txt (e.g. GPTBot, ClaudeBot)
       required:
         - aiVisibilityScore
         - semanticDensityScore

@@ -28,4 +28,8 @@ export interface AuditResult {
   competitorPatterns: string[];
   /** The URL that was analyzed */
   scrapedUrl: string;
+  /** Whether the domain is indexed in Bing (ChatGPT uses Bing to find sources) */
+  bingIndexed?: boolean;
+  /** List of AI crawlers blocked in robots.txt (e.g. GPTBot, ClaudeBot) */
+  blockedBots?: string[];
 }

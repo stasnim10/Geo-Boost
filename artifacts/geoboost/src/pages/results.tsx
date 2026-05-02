@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Show, useUser } from "@clerk/react";
 import { Gauge } from "@/components/gauge";
 import { AuditResult } from "@workspace/api-client-react";
-import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check } from "lucide-react";
+import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check, ShieldAlert, ShieldCheck, Bot, ChevronRight, HelpCircle } from "lucide-react";
 
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
@@ -299,6 +299,190 @@ function EmailResultsSection({ result, category }: { result: AuditResult; catego
   );
 }
 
+function WhyScoringLowModal({ result, category, onClose }: { result: AuditResult; category: string; onClose: () => void }) {
+  const score = result.aiVisibilityScore;
+  const scoreLabel = score >= 70 ? "Good" : score >= 40 ? "Needs Work" : "Critical";
+  const scoreColor = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-600";
+
+  const scoreExplainers = [
+    {
+      name: "How Often AI Recommends You",
+      value: result.aiVisibilityScore,
+      what: "Out of 100 searches in your category, how many times an AI assistant would recommend your business.",
+      fix: "Improve your content structure, add specific answers to common customer questions, and use bullet-pointed lists.",
+    },
+    {
+      name: "Content Usefulness",
+      value: result.semanticDensityScore,
+      what: "How much specific, helpful information AI can find on your page. Vague marketing language scores low.",
+      fix: "Add concrete details: your hours, pricing ranges, what makes you different, and direct answers to 'why choose you?'",
+    },
+    {
+      name: "AI Readability",
+      value: result.structuralFormattingScore,
+      what: "How easily AI can scan and understand your page. Long paragraphs and walls of text score low.",
+      fix: "Break content into short sections with clear headings. Use bullet points. Put the most important information first.",
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+              <HelpCircle className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <h2 className="font-extrabold text-slate-900 text-base">Why Is My Score {score}/100?</h2>
+              <p className={`text-xs font-semibold ${scoreColor}`}>{scoreLabel} — here's the full breakdown</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+            <X className="w-4 h-4 text-slate-400" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-6">
+          {/* Score breakdown */}
+          <div>
+            <h3 className="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">What Each Score Measures</h3>
+            <div className="space-y-4">
+              {scoreExplainers.map(({ name, value, what, fix }) => (
+                <div key={name} className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-bold text-slate-800">{name}</span>
+                    <span className={`text-sm font-extrabold ${value >= 70 ? "text-green-600" : value >= 40 ? "text-amber-600" : "text-red-600"}`}>{value}/100</span>
+                  </div>
+                  <div className="w-full bg-slate-200 rounded-full h-1.5 mb-3">
+                    <div
+                      className={`h-1.5 rounded-full ${value >= 70 ? "bg-green-500" : value >= 40 ? "bg-amber-500" : "bg-red-500"}`}
+                      style={{ width: `${value}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-slate-600 mb-1.5"><strong>What this measures:</strong> {what}</p>
+                  <p className="text-xs text-slate-500"><strong className="text-green-700">Quick fix:</strong> {fix}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Specific weaknesses */}
+          {result.weaknesses.length > 0 && (
+            <div>
+              <h3 className="text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">Your Specific Issues</h3>
+              <div className="space-y-3">
+                {result.weaknesses.map((w, i) => (
+                  <div key={i} className="flex gap-3 items-start">
+                    <div className="w-5 h-5 rounded-full bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
+                    <p className="text-sm text-slate-700 leading-relaxed">{w}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* The opportunity */}
+          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+            <p className="text-sm text-green-800 font-semibold mb-1">The good news for {category} businesses:</p>
+            <p className="text-xs text-green-700 leading-relaxed">
+              48% of businesses cited by AI don't rank on Google's first page. AI is a new playing field — and fixing these specific issues can dramatically improve how often AI recommends you, usually within 2–4 weeks.
+            </p>
+          </div>
+
+          {/* CTAs */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <Link href="/fix" className="flex-1">
+              <button className="w-full py-3 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-colors">
+                Get It Fixed — $49 One-Time
+              </button>
+            </Link>
+            <Link href="/optimizer" className="flex-1">
+              <button className="w-full py-3 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-colors">
+                Fix It Yourself — Free Tool
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BingBlockerBanner({ url }: { url: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const domain = url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
+  return (
+    <div className="mb-8 rounded-2xl overflow-hidden border-2 border-red-400 shadow-lg">
+      <div className="bg-red-600 px-6 py-4 flex items-center gap-3">
+        <ShieldAlert className="w-6 h-6 text-white flex-shrink-0" />
+        <div className="flex-1">
+          <h2 className="text-white font-extrabold text-lg leading-tight">Your Business Is Invisible To ChatGPT</h2>
+          <p className="text-red-100 text-sm mt-0.5">This must be fixed before anything else</p>
+        </div>
+      </div>
+      <div className="bg-red-50 px-6 py-5">
+        <p className="text-red-900 text-sm leading-relaxed mb-4">
+          <strong>ChatGPT uses Bing to find businesses to recommend.</strong> We checked and <strong>{domain}</strong> does not appear in Bing's index — meaning ChatGPT cannot recommend you no matter how good your content is. All the content optimization in the world will not help until this is fixed first.
+        </p>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="flex items-center gap-2 px-5 py-2.5 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 transition-colors"
+        >
+          {expanded ? "Hide" : "Get Step-By-Step Fix Instructions"}
+          <ChevronRight className={`w-4 h-4 transition-transform ${expanded ? "rotate-90" : ""}`} />
+        </button>
+        {expanded && (
+          <div className="mt-5 space-y-3">
+            {[
+              { step: 1, text: "Go to bing.com/webmasters and sign in with a Microsoft account (free)." },
+              { step: 2, text: `Add your website URL: ${domain}` },
+              { step: 3, text: "Download your sitemap — a sitemap is a file that lists every page on your website so search engines can find them all. If you use WordPress, the Yoast SEO plugin creates one automatically at yoursite.com/sitemap.xml." },
+              { step: 4, text: "Submit your sitemap in Bing Webmaster Tools under 'Sitemaps'." },
+              { step: 5, text: "Wait 48–72 hours for Bing to crawl your site and add it to their index." },
+              { step: 6, text: "Come back and run a new GEOboost audit — your score will update automatically." },
+            ].map(({ step, text }) => (
+              <div key={step} className="flex gap-3 items-start">
+                <div className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{step}</div>
+                <p className="text-sm text-red-900 leading-relaxed">{text}</p>
+              </div>
+            ))}
+            <p className="text-xs text-red-600 mt-2 font-semibold">This is completely free and takes about 10 minutes.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RobotsBanner({ blockedBots }: { blockedBots: string[] }) {
+  return (
+    <div className="mb-8 rounded-2xl overflow-hidden border border-orange-300">
+      <div className="bg-orange-500 px-6 py-4 flex items-center gap-3">
+        <Bot className="w-5 h-5 text-white flex-shrink-0" />
+        <h2 className="text-white font-bold text-base">Your Website Is Blocking AI Crawlers</h2>
+      </div>
+      <div className="bg-orange-50 px-6 py-5">
+        <p className="text-orange-900 text-sm leading-relaxed mb-3">
+          Your robots.txt file is telling <strong>{blockedBots.join(", ")}</strong> not to read your website. This means these AI systems cannot access your content and will not cite you in their answers.
+        </p>
+        <div className="bg-orange-100 rounded-lg p-4 border border-orange-200">
+          <p className="text-xs font-bold text-orange-800 mb-2">To fix this, find your robots.txt file and remove these lines (or change "Disallow: /" to "Allow: /"):</p>
+          <div className="font-mono text-xs bg-white rounded p-2 text-orange-700 space-y-0.5 border border-orange-100">
+            {blockedBots.map(bot => (
+              <div key={bot} className="line-through text-red-500">User-agent: {bot}{"\n"}Disallow: /</div>
+            ))}
+          </div>
+          <p className="text-xs text-orange-700 mt-2">Your robots.txt is at: <span className="font-mono font-bold">{"{your-domain}"}/robots.txt</span></p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SaveResultsBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="relative flex items-center gap-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white px-5 py-3.5 rounded-xl shadow-md mb-8">
@@ -329,6 +513,7 @@ export default function Results() {
   const [result, setResult] = useState<AuditResult | null>(null);
   const [category, setCategory] = useState("your industry");
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("geoboost_audit_result");
@@ -347,11 +532,15 @@ export default function Results() {
 
   if (!result) return null;
 
+  const bingIndexed = (result as AuditResult & { bingIndexed?: boolean }).bingIndexed;
+  const blockedBots = (result as AuditResult & { blockedBots?: string[] }).blockedBots ?? [];
   const invisibilityRate = 100 - result.aiVisibilityScore;
   const roi = estimateMonthlyLoss(result.aiVisibilityScore, category);
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4 md:px-8">
+      {modalOpen && <WhyScoringLowModal result={result} category={category} onClose={() => setModalOpen(false)} />}
+
       <Show when="signed-out">
         {!bannerDismissed && <SaveResultsBanner onDismiss={() => setBannerDismissed(true)} />}
       </Show>
@@ -376,12 +565,34 @@ export default function Results() {
         </div>
       </div>
 
+      {/* Bing critical blocker */}
+      {bingIndexed === false && <BingBlockerBanner url={result.scrapedUrl} />}
+
+      {/* robots.txt AI crawler block warning */}
+      {blockedBots.length > 0 && <RobotsBanner blockedBots={blockedBots} />}
+
+      {/* Bing indexed green badge */}
+      {bingIndexed === true && (
+        <div className="mb-6 flex items-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl w-fit">
+          <ShieldCheck className="w-4 h-4 text-green-600 flex-shrink-0" />
+          <span className="text-sm font-semibold text-green-800">Bing Indexed — ChatGPT Can Find You</span>
+          <span className="text-xs text-green-600">Your site appears in Bing's index, so ChatGPT can cite you.</span>
+        </div>
+      )}
+
       {/* Score gauges */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
         <div className="col-span-1 md:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col md:flex-row items-center justify-between">
           <div className="text-center md:text-left mb-6 md:mb-0">
             <h2 className="text-xl font-bold text-slate-900 mb-1">How Often AI Recommends You</h2>
             <p className="text-slate-500 max-w-md">Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor.</p>
+            <button
+              onClick={() => setModalOpen(true)}
+              className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2 transition-colors"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              Why is my score this low?
+            </button>
           </div>
           <Gauge value={result.aiVisibilityScore} size={180} strokeWidth={16} className="mx-auto md:mx-0" />
         </div>
