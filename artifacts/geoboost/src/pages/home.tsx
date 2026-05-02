@@ -40,9 +40,9 @@ export default function Home() {
       }
     }, {
       onSuccess: (result) => {
-        // Store in sessionStorage or state management. For simplicity, we can pass via sessionStorage
         sessionStorage.setItem("geoboost_audit_result", JSON.stringify(result));
         sessionStorage.setItem("geoboost_audit_queries", JSON.stringify([query1, query2, query3]));
+        sessionStorage.setItem("geoboost_audit_category", category);
         setLocation("/results");
       }
     });

@@ -1,0 +1,115 @@
+Great instinct. Let me answer both questions properly.
+
+Pricing Analysis — Is $149/month Right?
+What Competitors Charge
+Tool	Price	Who It's For
+Profound	$500-2000+/month	Enterprise only
+GrowthOS	$300-800/month	Mid-market
+Rankscale	$99-299/month	SMB to mid-market
+Semrush (full suite)	$130-500/month	SMB to enterprise
+Surfer SEO	$89-219/month	SMB content teams
+The Problem With $149
+You're charging tracking tool prices for an optimization execution tool — which is actually more valuable. But the issue isn't that $149 is too high. It's that you're charging one flat price for very different customers who have very different willingness to pay.
+
+A solo coffee shop owner and a digital marketing agency have completely different budgets and value perceptions.
+
+Recommended Pricing Structure
+Starter — $49/month
+
+3 audits per month
+5 page optimizations
+Email support
+Perfect for: solo business owners, bloggers, consultants
+Pro — $149/month
+
+Unlimited audits
+Unlimited optimizations
+Weekly automated re-audits
+Priority support
+Perfect for: growing e-commerce, local service businesses
+Agency — $399/month
+
+Everything in Pro
+20 client domains
+White label reports
+Client-shareable audit PDFs
+Perfect for: marketing agencies reselling GEO services
+Why this works better:
+
+$49 removes the price objection for small businesses
+$149 becomes the obvious middle choice (anchoring effect)
+$399 agency tier is where your real money comes from — one agency sale = 8x a starter sale
+The ROI Argument — This Is Your Most Important Sales Tool
+You're right that users need to see the return before they pay. Here's the exact ROI framing to build into the product:
+
+The Core ROI Calculation
+AI search is replacing Google search. The question isn't "is GEO worth it" — it's "what does invisibility to AI cost you right now?"
+
+Frame it this way for a local business:
+
+"If 1,000 people per month ask ChatGPT or Perplexity for the best coffee shop in Rochester, and you appear in 0 of those answers, and your competitor appears in 400 of them — how much revenue is that costing you?"
+
+You don't need exact numbers. The logic alone is terrifying enough.
+
+Specific ROI Scenarios by Customer Type
+For a local restaurant or cafe (like Java Cafe):
+
+Average customer spends $15 per visit, comes 3x per month = $45/month lifetime value
+Getting recommended in just 10 additional AI searches per month that convert = 2-3 new regular customers
+2 new regulars × $45/month = $90/month in new revenue
+Cost of GEOboost: $49/month
+ROI: Break even with 1.1 new customers. Everything above that is pure profit.
+For an e-commerce business:
+
+Average order value $80, conversion rate 2%
+AI visibility improvement drives 500 additional monthly visitors
+500 × 2% × $80 = $800 additional monthly revenue
+Cost of GEOboost: $149/month
+ROI: 5.4x return
+For a marketing agency:
+
+Agency charges clients $500-1500/month for SEO services
+Adding GEO to their package justifies $300-500 price increase per client
+10 clients × $400 increase = $4,000 additional monthly revenue
+Cost of GEOboost Agency: $399/month
+ROI: 10x return
+Where To Put This In The Product
+1. On The Audit Results Page
+Right above the CTA button, add a dynamic ROI calculator. After the audit runs, show:
+
+"What AI invisibility is costing you" Businesses in your category get asked about 2,300 times per month by AI users in your area. At your current score of 14/100, you're appearing in approximately 0 of those conversations. If just 1% of those convert at your average transaction value, that's $X,XXX in monthly revenue going to your competitors.
+
+Make X,XXX dynamic based on their business category.
+
+2. On The Pricing/Landing Page
+Add a simple interactive slider:
+
+"How many customers does AI send you per month?" Move the slider → shows projected revenue at different visibility scores At the bottom: "GEOboost costs less than one lost customer per month"
+
+3. In The Email Follow-Up
+When they enter their email for the audit, the follow-up email subject line should be:
+
+"Your Java Cafe audit: $2,400/month slipping to competitors"
+
+Personalized with their business name and a dollar figure. That email gets opened.
+
+The One Line That Sells This
+Everything above can be distilled into one sentence you put on the homepage hero:
+
+"AI assistants recommend your competitors 94% of the time. GEOboost fixes that."
+
+That number (derived from their audit score of 14/100 inverted) is specific, scary, and personal. It's not a generic claim — it's their actual situation.
+
+What To Tell Replit Agent Now
+Two things to build alongside the Stripe integration:
+
+First — paste the Stripe prompt from earlier into Agent and get payments working.
+
+Then add this:
+
+"On the results page, between the competitor insights section and the CTA button, add a new section called 'What This Is Costing You'. It should display: 'Based on your AI Visibility Score of [score]/100, AI assistants are recommending competitors over you approximately [100-score]% of the time. For a business in the [category] category, this invisibility typically costs $[calculated estimate] in monthly revenue going to competitors.' Calculate the estimated monthly cost using this formula: assume 1000 monthly AI queries in their category, multiply by (100-score)/100 to get missed recommendations, multiply by 0.02 conversion rate, multiply by an average transaction value based on category (restaurants: $45, retail: $80, services: $150, default: $75). Display this number in large red text. Below it add a green line: 'GEOboost Pro pays for itself with just [ceil(149/transaction_value)] additional customers per month.'"
+
+This single addition will meaningfully increase your conversion rate because it makes the cost of inaction concrete and personal.
+
+
+Ready to paste the Stripe prompt into Agent?
