@@ -1,24 +1,90 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRunAudit } from "@workspace/api-client-react";
-import { ShieldAlert, Crosshair, Search, Loader2 } from "lucide-react";
+import { ShieldAlert, Crosshair, Search, Loader2, Sparkles } from "lucide-react";
+
+const CATEGORY_RULES: { patterns: RegExp[]; label: string }[] = [
+  { patterns: [/coffee|cafe|caf[eé]|espresso|latte|brew|roast/], label: "Coffee Shop / Café" },
+  { patterns: [/restaurant|dining|bistro|eatery|grill|kitchen|food|burger|pizza|sushi|taco|ramen|bbq|steakhouse/], label: "Restaurant" },
+  { patterns: [/bakery|bake|pastry|cake|cookie|bread|patisserie/], label: "Bakery" },
+  { patterns: [/bar|pub|tavern|brewery|beer|wine|cocktail|distill/], label: "Bar / Brewery" },
+  { patterns: [/dental|dentist|orthodont|tooth|teeth|smile/], label: "Dental Practice" },
+  { patterns: [/medical|doctor|clinic|health|care|physician|urgent.?care|therapy|therapist|chiro|physio/], label: "Medical / Healthcare" },
+  { patterns: [/law|legal|attorney|lawyer|firm|counsel|litigation|advocate/], label: "Law Firm" },
+  { patterns: [/plumb|hvac|heat|cool|electric|roofing|landscap|pest|gutter|window|siding|remodel|contractor|handyman/], label: "Home Services" },
+  { patterns: [/real.?estate|realtor|realty|property|mortgage|homes.?for.?sale/], label: "Real Estate" },
+  { patterns: [/hotel|motel|inn|resort|lodge|hostel|airbnb|vacation.?rental/], label: "Hotel / Hospitality" },
+  { patterns: [/gym|fitness|yoga|crossfit|pilates|personal.?train|sport|wellness/], label: "Fitness / Wellness" },
+  { patterns: [/salon|hair|barbershop|nail|spa|beauty|aesthet/], label: "Salon / Beauty" },
+  { patterns: [/agency|marketing|seo|advertising|branding|creative|pr\b|media/], label: "Marketing Agency" },
+  { patterns: [/consult|coach|advisor|coaching|mentor|strateg/], label: "Consulting" },
+  { patterns: [/accounting|cpa|bookkeep|tax|payroll|audit|financial.?service/], label: "Accounting / Finance" },
+  { patterns: [/saas|software|platform|tech|startup|app\b|solution|cloud|devops/], label: "B2B SaaS / Tech" },
+  { patterns: [/shop|store|retail|boutique|ecommerce|e-commerce|fashion|apparel|clothing|jewelry|gift/], label: "Retail / E-Commerce" },
+  { patterns: [/auto|car|vehicle|mechanic|dealership|repair|tire|motor/], label: "Auto Services" },
+  { patterns: [/school|tutoring|education|academy|learning|course|college|training/], label: "Education" },
+  { patterns: [/vet|veterinary|animal|pet|dog|cat|kennel/], label: "Veterinary / Pet Services" },
+  { patterns: [/clean|maid|janitorial|housekeep/], label: "Cleaning Services" },
+  { patterns: [/photo|photographer|videograph|studio|portrait|wedding/], label: "Photography / Videography" },
+  { patterns: [/moving|mover|storage|logistic|freight|delivery|shipping/], label: "Moving / Logistics" },
+  { patterns: [/insur|insurance|protect|coverage/], label: "Insurance" },
+];
+
+function suggestCategoryFromUrl(rawUrl: string): string | null {
+  try {
+    const normalized = rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`;
+    const parsed = new URL(normalized);
+    const searchText = (parsed.hostname + " " + parsed.pathname)
+      .replace(/www\.|\.com|\.net|\.org|\.io|\.co|[-_/]/g, " ")
+      .toLowerCase();
+
+    for (const rule of CATEGORY_RULES) {
+      if (rule.patterns.some(p => p.test(searchText))) {
+        return rule.label;
+      }
+    }
+  } catch {
+    // invalid URL yet — ignore
+  }
+  return null;
+}
 
 export default function Home() {
   const [, setLocation] = useLocation();
   const runAudit = useRunAudit();
-  
+
   const [url, setUrl] = useState("");
   const [category, setCategory] = useState("");
+  const [suggestion, setSuggestion] = useState<string | null>(null);
   const [query1, setQuery1] = useState("");
   const [query2, setQuery2] = useState("");
   const [query3, setQuery3] = useState("");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  
+
   const [step, setStep] = useState<"initial" | "email">("initial");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      const s = suggestCategoryFromUrl(url);
+      setSuggestion(s);
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [url]);
+
+  const acceptSuggestion = () => {
+    if (suggestion) {
+      setCategory(suggestion);
+      setSuggestion(null);
+    }
+  };
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,6 +113,8 @@ export default function Home() {
       }
     });
   };
+
+  const showSuggestion = suggestion && suggestion !== category;
 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 md:px-8">
@@ -82,9 +150,9 @@ export default function Home() {
                 <Label htmlFor="url" className="text-slate-700 font-semibold">Business Website URL</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
-                  <Input 
+                  <Input
                     id="url"
-                    placeholder="https://yourbusiness.com" 
+                    placeholder="https://yourbusiness.com"
                     className="pl-10 h-12 bg-slate-50 border-slate-200 focus-visible:ring-blue-500 text-lg"
                     value={url}
                     onChange={e => setUrl(e.target.value)}
@@ -95,14 +163,27 @@ export default function Home() {
 
               <div className="space-y-2">
                 <Label htmlFor="category" className="text-slate-700 font-semibold">Business Category</Label>
-                <Input 
+                <Input
                   id="category"
-                  placeholder="e.g. B2B SaaS, Boutique Coffee Roaster" 
+                  placeholder="e.g. B2B SaaS, Boutique Coffee Roaster"
                   className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-blue-500"
                   value={category}
-                  onChange={e => setCategory(e.target.value)}
+                  onChange={e => {
+                    setCategory(e.target.value);
+                    setSuggestion(null);
+                  }}
                   required
                 />
+                {showSuggestion && (
+                  <button
+                    type="button"
+                    onClick={acceptSuggestion}
+                    className="inline-flex items-center gap-1.5 mt-1 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    Suggested: {suggestion} — tap to use
+                  </button>
+                )}
               </div>
 
               <div className="space-y-4">
@@ -110,8 +191,8 @@ export default function Home() {
                 <div className="space-y-3">
                   <div className="relative">
                     <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                    <Input 
-                      placeholder="Query 1" 
+                    <Input
+                      placeholder="Query 1"
                       className="pl-9 bg-slate-50 border-slate-200"
                       value={query1}
                       onChange={e => setQuery1(e.target.value)}
@@ -120,8 +201,8 @@ export default function Home() {
                   </div>
                   <div className="relative">
                     <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                    <Input 
-                      placeholder="Query 2" 
+                    <Input
+                      placeholder="Query 2"
                       className="pl-9 bg-slate-50 border-slate-200"
                       value={query2}
                       onChange={e => setQuery2(e.target.value)}
@@ -130,8 +211,8 @@ export default function Home() {
                   </div>
                   <div className="relative">
                     <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
-                    <Input 
-                      placeholder="Query 3" 
+                    <Input
+                      placeholder="Query 3"
                       className="pl-9 bg-slate-50 border-slate-200"
                       value={query3}
                       onChange={e => setQuery3(e.target.value)}
@@ -155,9 +236,9 @@ export default function Home() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="name" className="text-slate-700 font-semibold">Your Name</Label>
-                  <Input 
+                  <Input
                     id="name"
-                    placeholder="Jane Doe" 
+                    placeholder="Jane Doe"
                     className="h-12 bg-slate-50 border-slate-200"
                     value={name}
                     onChange={e => setName(e.target.value)}
@@ -166,10 +247,10 @@ export default function Home() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-slate-700 font-semibold">Work Email</Label>
-                  <Input 
+                  <Input
                     id="email"
                     type="email"
-                    placeholder="jane@company.com" 
+                    placeholder="jane@company.com"
                     className="h-12 bg-slate-50 border-slate-200"
                     value={email}
                     onChange={e => setEmail(e.target.value)}
