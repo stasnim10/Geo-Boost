@@ -14,6 +14,7 @@ import Optimizer from "@/pages/optimizer";
 import Success from "@/pages/success";
 import Cancel from "@/pages/cancel";
 import Dashboard from "@/pages/dashboard";
+import SharedResultsPage from "@/pages/shared";
 
 const queryClient = new QueryClient();
 
@@ -156,6 +157,7 @@ function Router() {
         <Route path="/optimizer" component={Optimizer} />
         <Route path="/success" component={Success} />
         <Route path="/cancel" component={Cancel} />
+        <Route path="/shared/:token" component={SharedResultsPage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

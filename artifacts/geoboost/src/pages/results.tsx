@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Show, useUser } from "@clerk/react";
 import { Gauge } from "@/components/gauge";
 import { AuditResult } from "@workspace/api-client-react";
-import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2 } from "lucide-react";
+import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check } from "lucide-react";
 
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
@@ -84,6 +84,112 @@ function CtaButton({ label, className = "" }: { label: string; className?: strin
       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
       {loading ? "Redirecting to checkout…" : label}
     </button>
+  );
+}
+
+function ShareResultsSection({ result, category }: { result: AuditResult; category: string }) {
+  const [status, setStatus] = useState<"idle" | "generating" | "ready" | "error">("idle");
+  const [shareUrl, setShareUrl] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  const generate = async () => {
+    setStatus("generating");
+    try {
+      const res = await fetch("/api/geoboost/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: result.scrapedUrl,
+          category,
+          aiVisibilityScore: result.aiVisibilityScore,
+          semanticDensityScore: result.semanticDensityScore,
+          structuralFormattingScore: result.structuralFormattingScore,
+          weaknesses: result.weaknesses,
+          competitorPatterns: result.competitorPatterns,
+        }),
+      });
+      const data = await res.json() as { token?: string; error?: string };
+      if (res.ok && data.token) {
+        const url = `${window.location.origin}${window.location.pathname.replace(/\/results.*/, "")}/shared/${data.token}`;
+        setShareUrl(url);
+        setStatus("ready");
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
+  };
+
+  const copy = async () => {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="mt-6 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Link2 className="w-4 h-4 text-slate-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900 text-sm">Share these results</p>
+            <p className="text-xs text-slate-500">Generate a public link — no sign-in required to view</p>
+          </div>
+        </div>
+
+        {status === "idle" && (
+          <button
+            onClick={generate}
+            style={{ backgroundColor: "#22c55e" }}
+            className="px-4 py-2 text-white text-sm font-bold rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap"
+          >
+            Generate Link
+          </button>
+        )}
+
+        {status === "generating" && (
+          <div className="flex items-center gap-2 text-slate-500 text-sm">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>Generating…</span>
+          </div>
+        )}
+
+        {status === "error" && (
+          <button
+            onClick={generate}
+            className="px-4 py-2 bg-red-50 text-red-600 text-sm font-bold rounded-lg hover:bg-red-100 transition-colors whitespace-nowrap"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+
+      {status === "ready" && (
+        <div className="px-6 pb-5 border-t border-slate-100 pt-4">
+          <label className="block text-xs font-semibold text-slate-600 mb-2">Shareable link</label>
+          <div className="flex gap-2">
+            <input
+              readOnly
+              value={shareUrl}
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+              className="flex-1 min-w-0 px-3 py-2 text-xs border border-slate-200 rounded-lg bg-slate-50 text-slate-700 font-mono focus:outline-none focus:ring-2 focus:ring-green-500 cursor-text"
+            />
+            <button
+              onClick={copy}
+              style={{ backgroundColor: copied ? "#22c55e" : undefined }}
+              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-sm font-bold rounded-lg transition-colors whitespace-nowrap ${copied ? "text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
+            >
+              {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          </div>
+          <p className="text-xs text-slate-400 mt-2">Anyone with this link can view the full report — no account needed.</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -367,6 +473,7 @@ export default function Results() {
         </div>
       </div>
 
+      <ShareResultsSection result={result} category={category} />
       <EmailResultsSection result={result} category={category} />
 
       {/* Bottom CTA */}

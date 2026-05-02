@@ -3,7 +3,8 @@ import { getAuth } from "@clerk/express";
 import { Resend } from "resend";
 import { RunAuditBody, OptimizeContentBody, DetectCategoryBody } from "@workspace/api-zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { db, auditsTable } from "@workspace/db";
+import { db, auditsTable, sharedResultsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
 const router: IRouter = Router();
@@ -441,6 +442,62 @@ router.post("/geoboost/send-results", async (req, res): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Email send error");
     res.status(500).json({ error: err instanceof Error ? err.message : "Unknown error" });
+  }
+});
+
+// ─── share ────────────────────────────────────────────────────────────────────
+router.post("/geoboost/share", async (req, res): Promise<void> => {
+  const { url, category, aiVisibilityScore, semanticDensityScore, structuralFormattingScore, weaknesses, competitorPatterns } = req.body as {
+    url: string;
+    category: string;
+    aiVisibilityScore: number;
+    semanticDensityScore: number;
+    structuralFormattingScore: number;
+    weaknesses: string[];
+    competitorPatterns: string[];
+  };
+
+  if (!url || !category || typeof aiVisibilityScore !== "number" || !Array.isArray(weaknesses) || !Array.isArray(competitorPatterns)) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+
+  try {
+    const [row] = await db.insert(sharedResultsTable).values({
+      url,
+      category,
+      aiVisibilityScore,
+      semanticDensityScore,
+      structuralFormattingScore,
+      weaknesses,
+      competitorPatterns,
+    }).returning({ token: sharedResultsTable.token });
+
+    req.log.info({ token: row.token, url }, "Shared result created");
+    res.json({ token: row.token });
+  } catch (err) {
+    logger.error({ err }, "Share creation error");
+    res.status(500).json({ error: "Failed to create share link" });
+  }
+});
+
+router.get("/geoboost/share/:token", async (req, res): Promise<void> => {
+  const { token } = req.params;
+  if (!token || !/^[0-9a-f-]{36}$/.test(token)) {
+    res.status(400).json({ error: "Invalid token" });
+    return;
+  }
+
+  try {
+    const [row] = await db.select().from(sharedResultsTable).where(eq(sharedResultsTable.token, token)).limit(1);
+    if (!row) {
+      res.status(404).json({ error: "Share link not found or expired" });
+      return;
+    }
+    res.json(row);
+  } catch (err) {
+    logger.error({ err }, "Share fetch error");
+    res.status(500).json({ error: "Failed to load shared results" });
   }
 });
 
