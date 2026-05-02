@@ -1,0 +1,65 @@
+Build the Phase 1 Premium Fix Package for GEOboost. This is a locked premium feature accessible after audit completion. Here is exactly what to build:
+PREMIUM FIX PAGE at /fix:
+Page header: 'Your Complete AI Visibility Fix Package'
+Subheader: 'Everything you need to get cited by ChatGPT, Claude and Perplexity — ready to use in minutes'
+Load audit context from sessionStorage (url, category, scores, weaknesses, queries, location).
+Show a locked premium banner at the top with:
+
+Price: $49 one-time or included in Pro plan
+Green button: Unlock Fix Package
+List of what is included (schema markup, GBP copy, social bios, content brief)
+
+For now make the Unlock button connect to Stripe checkout for a one-time $49 payment product called GEOboost Fix Package. Create a new /api/create-fix-checkout route for this.
+After unlock (check sessionStorage for fix_unlocked = true after successful payment), show all four sections:
+SECTION 1 — SCHEMA MARKUP:
+
+Header: Schema Markup Code
+Explanation: Paste this into your website head section or give it to your developer. This tells AI crawlers exactly what your business is.
+Call Claude API to generate complete JSON-LD schema markup for their business type including: LocalBusiness type, name, address (from location), category, description optimized for AI, openingHours placeholder, priceRange, aggregateRating placeholder
+Display in a dark code block with syntax highlighting
+Copy button
+Instruction: How to add this — simple 3 step guide for WordPress, Shopify, and Webflow
+
+SECTION 2 — GOOGLE BUSINESS PROFILE:
+
+Header: Google Business Profile Copy
+Call Claude to generate:
+
+Optimized GBP business description (750 chars max, fact-dense, query-aligned)
+5 ready-to-publish GBP posts for the next 5 weeks, each structured to answer one of their target queries
+3 suggested Q&A pairs to add to their GBP Q&A section
+
+
+Each piece in its own card with copy button
+Instruction: Step by step how to update GBP description and add posts
+
+SECTION 3 — SOCIAL MEDIA BIOS:
+
+Header: AI-Optimized Social Bios
+Call Claude to generate optimized bios for: Twitter/X (160 chars), LinkedIn Company Page (2000 chars), Instagram (150 chars), Facebook (255 chars)
+Each bio is fact-dense, includes location, category keywords, and a specific differentiator
+Each in its own card with character count and copy button
+
+SECTION 4 — FULL CONTENT BRIEF:
+
+Header: Your Complete Content Fix Brief
+Call Claude to generate a structured document with:
+
+Executive Summary: current score, target score, estimated improvement timeline
+For each weakness found in audit: exact rewrite recommendation with before/after example
+Priority order: what to fix first for fastest AI visibility gain
+Content additions: 5 specific paragraphs to add to their website with the exact text written out
+FAQ section to add: 8 Q&A pairs written out ready to paste
+
+
+Display as formatted document
+Add Download as PDF button
+Add Send to Email button
+
+NAVIGATION:
+
+Add Fix link to the main navigation header between Optimizer and Sign In
+On the results page after audit, add a new section below the competitor insights: Get Your Complete Fix Package — shows the four icons and a green Unlock for dollar 49 button linking to /fix
+
+Make all Claude calls in parallel where possible to reduce loading time. Show individual loading states per section so users see progress.
+Test internally and confirm all four sections generate real content before reporting back.

@@ -445,6 +445,215 @@ router.post("/geoboost/send-results", async (req, res): Promise<void> => {
   }
 });
 
+// ─── fix: schema ──────────────────────────────────────────────────────────────
+router.post("/geoboost/fix/schema", async (req, res): Promise<void> => {
+  const { url, category, location, queries, weaknesses } = req.body as {
+    url: string; category: string; location?: string; queries: string[]; weaknesses: string[];
+  };
+  if (!url || !category) { res.status(400).json({ error: "url and category required" }); return; }
+
+  const prompt = `Generate a complete JSON-LD schema markup for this local business. Return ONLY the JSON-LD script tag, nothing else.
+
+Business URL: ${url}
+Business Category: ${category}
+Location: ${location || "Not specified"}
+Target Queries: ${queries.join(", ")}
+Known Issues to Fix: ${weaknesses.join("; ")}
+
+Generate a comprehensive LocalBusiness JSON-LD schema including:
+- @context, @type (use most specific BusinessType subtype e.g. CafeOrCoffeeShop, Dentist, LegalService etc.)
+- name (infer from URL domain), url
+- description: 150-200 chars, dense with category keywords matching the target queries
+- address with addressLocality/addressRegion/addressCountry based on location
+- openingHours: realistic placeholder for this business type
+- priceRange: appropriate for this business type (e.g. "$$")
+- aggregateRating: @type AggregateRating, ratingValue 4.6, reviewCount 47
+- hasMap pointing to a Google Maps search URL
+
+Return ONLY the complete <script type="application/ld+json">...</script> block, formatted and ready to paste.`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6", max_tokens: 2048,
+      messages: [{ role: "user", content: prompt }],
+    });
+    let schema = message.content[0].type === "text" ? message.content[0].text.trim() : "";
+    // Strip markdown code fences if Claude wrapped the output
+    schema = schema.replace(/^```(?:html|json|javascript)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    res.json({ schema });
+  } catch (err) {
+    logger.error({ err }, "Fix schema generation failed");
+    res.status(500).json({ error: "Schema generation failed" });
+  }
+});
+
+// ─── fix: gbp ─────────────────────────────────────────────────────────────────
+router.post("/geoboost/fix/gbp", async (req, res): Promise<void> => {
+  const { url, category, location, queries, weaknesses } = req.body as {
+    url: string; category: string; location?: string; queries: string[]; weaknesses: string[];
+  };
+  if (!url || !category) { res.status(400).json({ error: "url and category required" }); return; }
+
+  const prompt = `Generate Google Business Profile content for this business. Return ONLY valid JSON.
+
+Business URL: ${url}
+Category: ${category}
+Location: ${location || "Not specified"}
+Target Queries: ${queries.join(", ")}
+Weaknesses to Fix: ${weaknesses.join("; ")}
+
+Return JSON with this exact structure:
+{
+  "description": "750-char max GBP business description — fact-dense, specific, includes location, addresses target queries directly. NO marketing fluff.",
+  "posts": [
+    "Week 1 post (150-300 chars): answers query '${queries[0] || "about their service"}'",
+    "Week 2 post: answers query '${queries[1] || "pricing or hours"}'",
+    "Week 3 post: highlights a specific differentiator",
+    "Week 4 post: seasonal or timely content",
+    "Week 5 post: customer-focused benefit"
+  ],
+  "qa": [
+    {"q": "specific question a customer would search", "a": "specific factual answer with details"},
+    {"q": "pricing or availability question", "a": "direct factual answer"},
+    {"q": "third relevant question", "a": "specific answer that improves AI visibility"}
+  ]
+}`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6", max_tokens: 3000,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("No JSON returned");
+    res.json(JSON.parse(match[0]));
+  } catch (err) {
+    logger.error({ err }, "Fix GBP generation failed");
+    res.status(500).json({ error: "GBP content generation failed" });
+  }
+});
+
+// ─── fix: social ──────────────────────────────────────────────────────────────
+router.post("/geoboost/fix/social", async (req, res): Promise<void> => {
+  const { url, category, location, queries, weaknesses } = req.body as {
+    url: string; category: string; location?: string; queries: string[]; weaknesses: string[];
+  };
+  if (!url || !category) { res.status(400).json({ error: "url and category required" }); return; }
+
+  const prompt = `Generate AI-optimized social media bios for this business. Return ONLY valid JSON.
+
+Business URL: ${url}
+Category: ${category}
+Location: ${location || "Not specified"}
+Target Queries: ${queries.join(", ")}
+
+Each bio must: include specific location, category keywords, a measurable differentiator, and be fact-dense (no generic marketing language).
+
+Return JSON with this exact structure:
+{
+  "twitter": "160 chars max — punchy, includes location + category + one specific differentiator + website",
+  "linkedin": "150-300 chars — professional, includes category, location, specific services, and target audience",
+  "instagram": "150 chars max — engaging, includes location, category, relevant emojis (2-3 max), call to action",
+  "facebook": "255 chars max — friendly, includes full location, services, hours hint, and call to action"
+}`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6", max_tokens: 1500,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("No JSON returned");
+    res.json(JSON.parse(match[0]));
+  } catch (err) {
+    logger.error({ err }, "Fix social generation failed");
+    res.status(500).json({ error: "Social bio generation failed" });
+  }
+});
+
+// ─── fix: brief ───────────────────────────────────────────────────────────────
+router.post("/geoboost/fix/brief", async (req, res): Promise<void> => {
+  const { url, category, location, queries, weaknesses, aiVisibilityScore } = req.body as {
+    url: string; category: string; location?: string; queries: string[];
+    weaknesses: string[]; aiVisibilityScore: number;
+  };
+  if (!url || !category) { res.status(400).json({ error: "url and category required" }); return; }
+
+  const prompt = `Generate a complete content fix brief for this business. Return ONLY valid JSON.
+
+Business URL: ${url}
+Category: ${category}
+Location: ${location || "Not specified"}
+Current AI Visibility Score: ${aiVisibilityScore}/100
+Target Queries: ${queries.join(", ")}
+Identified Weaknesses: ${weaknesses.join("; ")}
+
+Return JSON with this exact structure:
+{
+  "executiveSummary": "2-3 sentence summary: current score ${aiVisibilityScore}/100, target score (estimate 65-75 after fixes), estimated 3-6 weeks timeline, primary reason AI assistants are not citing this business",
+  "weaknessFixes": [
+    ${weaknesses.slice(0, 4).map(w => `{"weakness": "${w.replace(/"/g, "'")}", "before": "example of current weak language/content", "after": "specific improved version with facts and clarity", "recommendation": "one sentence explaining why this change improves AI citation probability"}`).join(",\n    ")}
+  ],
+  "priorityOrder": [
+    "Fix #1 with highest ROI — be specific about what to do",
+    "Fix #2 — be specific",
+    "Fix #3 — be specific",
+    "Fix #4 — be specific",
+    "Fix #5 — be specific"
+  ],
+  "contentAdditions": [
+    "Complete paragraph 1 to add — 50-100 words, factual, answers '${queries[0] || "target query 1"}'",
+    "Complete paragraph 2 — answers '${queries[1] || "target query 2"}'",
+    "Complete paragraph 3 — addresses a specific weakness",
+    "Complete paragraph 4 — adds semantic density with specific facts about this category",
+    "Complete paragraph 5 — adds location-specific content for local AI visibility"
+  ],
+  "faqSection": [
+    {"q": "question 1 customers ask", "a": "specific factual answer"},
+    {"q": "question 2", "a": "specific answer"},
+    {"q": "question 3", "a": "specific answer"},
+    {"q": "question 4", "a": "specific answer"},
+    {"q": "question 5", "a": "specific answer"},
+    {"q": "question 6", "a": "specific answer"},
+    {"q": "question 7", "a": "specific answer"},
+    {"q": "question 8 about pricing, hours, or services", "a": "specific answer"}
+  ]
+}`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-6", max_tokens: 5000,
+      messages: [{ role: "user", content: prompt }],
+    });
+    const text = message.content[0].type === "text" ? message.content[0].text : "";
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("No JSON returned");
+    res.json(JSON.parse(match[0]));
+  } catch (err) {
+    logger.error({ err }, "Fix brief generation failed");
+    res.status(500).json({ error: "Brief generation failed" });
+  }
+});
+
+// ─── fix: send-brief ──────────────────────────────────────────────────────────
+router.post("/geoboost/send-brief", async (req, res): Promise<void> => {
+  const { email, url, body } = req.body as { email?: string; url?: string; body?: string };
+  if (!email || !body) { res.status(400).json({ error: "email and body required" }); return; }
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) { res.status(503).json({ error: "Email not configured" }); return; }
+  const resend = new Resend(apiKey);
+  const from = process.env.RESEND_FROM_EMAIL || "GEOboost <onboarding@resend.dev>";
+  const { error } = await resend.emails.send({
+    from, to: email,
+    subject: `Your GEOboost Content Fix Brief — ${url}`,
+    text: body,
+  });
+  if (error) { res.status(500).json({ error: "Failed to send email" }); return; }
+  res.json({ success: true });
+});
+
 // ─── scrape-content ───────────────────────────────────────────────────────────
 router.post("/geoboost/scrape-content", async (req, res): Promise<void> => {
   const { url } = req.body as { url?: string };

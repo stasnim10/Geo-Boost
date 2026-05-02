@@ -473,6 +473,39 @@ export default function Results() {
         </div>
       </div>
 
+      {/* Fix Package CTA */}
+      <div className="mt-8 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div>
+            <h2 className="text-xl font-extrabold mb-1">Get Your Complete Fix Package</h2>
+            <p className="text-slate-400 text-sm max-w-lg">
+              Schema markup, Google Business Profile copy, social media bios, and a full content brief — generated for <strong className="text-white">{result.scrapedUrl}</strong> in minutes.
+            </p>
+            <div className="flex flex-wrap gap-3 mt-4">
+              {[
+                { icon: "🔧", label: "Schema Markup" },
+                { icon: "📍", label: "GBP Copy" },
+                { icon: "📱", label: "Social Bios" },
+                { icon: "📄", label: "Content Brief" },
+              ].map(({ icon, label }) => (
+                <span key={label} className="flex items-center gap-1.5 text-xs font-semibold bg-white/10 rounded-lg px-3 py-1.5">
+                  {icon} {label}
+                </span>
+              ))}
+            </div>
+          </div>
+          <Link href="/fix">
+            <button
+              style={{ backgroundColor: "#22c55e" }}
+              className="flex-shrink-0 flex items-center gap-2 px-7 py-3.5 text-white font-extrabold text-base rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap shadow-lg"
+            >
+              <Zap className="w-5 h-5" />
+              Unlock for $49
+            </button>
+          </Link>
+        </div>
+      </div>
+
       <ShareResultsSection result={result} category={category} />
       <EmailResultsSection result={result} category={category} />
 

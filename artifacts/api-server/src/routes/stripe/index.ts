@@ -62,4 +62,44 @@ router.post("/create-checkout-session", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/create-fix-checkout", async (req, res): Promise<void> => {
+  try {
+    const stripe = getStripe();
+    const base = getBaseUrl();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "GEOboost Fix Package",
+              description: "Complete AI visibility fix: JSON-LD schema markup, Google Business Profile copy, social media bios, and a full content brief.",
+            },
+            unit_amount: 4900,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${base}/fix-success`,
+      cancel_url: `${base}/fix`,
+    });
+
+    if (!session.url) {
+      res.status(500).json({ error: "Stripe did not return a session URL" });
+      return;
+    }
+
+    logger.info({ sessionId: session.id }, "Fix package checkout session created");
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err }, "Failed to create fix checkout session");
+    res.status(500).json({
+      error: "Could not create checkout session",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+});
+
 export default router;
