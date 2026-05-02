@@ -5,6 +5,10 @@ import {
   Loader2, TrendingUp, ExternalLink, Plus, Clock,
   Link2, Copy, Check, Mail, ChevronDown, BarChart2,
 } from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ReferenceLine, ResponsiveContainer, Legend,
+} from "recharts";
 
 interface SavedAudit {
   id: number;
@@ -307,6 +311,125 @@ function AuditCard({
   );
 }
 
+const DOMAIN_COLORS = [
+  "#6366f1", "#f59e0b", "#ec4899", "#14b8a6", "#8b5cf6", "#f97316",
+];
+
+function normalizeDomain(url: string): string {
+  return url.replace(/^https?:\/\//, "").replace(/\/.*$/, "").replace(/^www\./, "");
+}
+
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function ScoreHistoryChart({ audits }: { audits: SavedAudit[] }) {
+  if (audits.length < 2) return null;
+
+  // Group by domain, sorted by date
+  const byDomain = new Map<string, SavedAudit[]>();
+  for (const a of audits) {
+    const domain = normalizeDomain(a.url);
+    if (!byDomain.has(domain)) byDomain.set(domain, []);
+    byDomain.get(domain)!.push(a);
+  }
+  for (const [, list] of byDomain) {
+    list.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }
+
+  // Only show domains with 2+ audits so lines are meaningful
+  const domains = [...byDomain.entries()].filter(([, list]) => list.length >= 2).map(([d]) => d);
+  if (domains.length === 0) return null;
+
+  // Build unified timeline of all dates across all domains
+  const allDates = [...new Set(
+    audits.map(a => new Date(a.createdAt).toISOString().slice(0, 10))
+  )].sort();
+
+  // Build chart data: one row per date, columns per domain
+  const data = allDates.map(date => {
+    const row: Record<string, string | number> = { date: formatDate(date) };
+    for (const domain of domains) {
+      const list = byDomain.get(domain)!;
+      // find the last audit on or before this date for this domain
+      const match = [...list].reverse().find(a =>
+        new Date(a.createdAt).toISOString().slice(0, 10) <= date
+      );
+      if (match) row[domain] = match.aiVisibilityScore;
+    }
+    return row;
+  });
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mt-8">
+      <div className="mb-5">
+        <h2 className="text-base font-extrabold text-slate-900">Score History</h2>
+        <p className="text-xs text-slate-500 mt-0.5">AI Visibility Score over time, per domain</p>
+      </div>
+
+      <ResponsiveContainer width="100%" height={220}>
+        <LineChart data={data} margin={{ top: 8, right: 16, left: -12, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 11, fill: "#94a3b8" }}
+            axisLine={false}
+            tickLine={false}
+          />
+          <YAxis
+            domain={[0, 100]}
+            tick={{ fontSize: 11, fill: "#94a3b8" }}
+            axisLine={false}
+            tickLine={false}
+            tickCount={6}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "#fff",
+              border: "1px solid #e2e8f0",
+              borderRadius: "10px",
+              fontSize: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+            }}
+            formatter={(value: number, name: string) => [`${value}/100`, name]}
+          />
+          {domains.length > 1 && (
+            <Legend
+              wrapperStyle={{ fontSize: "11px", paddingTop: "12px", color: "#64748b" }}
+              iconType="circle"
+              iconSize={7}
+            />
+          )}
+          <ReferenceLine
+            y={70}
+            stroke="#22c55e"
+            strokeDasharray="5 4"
+            strokeWidth={1.5}
+            label={{ value: "Good Visibility", position: "insideTopRight", fontSize: 10, fill: "#22c55e", dy: -4 }}
+          />
+          {domains.map((domain, i) => (
+            <Line
+              key={domain}
+              type="monotone"
+              dataKey={domain}
+              stroke={DOMAIN_COLORS[i % DOMAIN_COLORS.length]}
+              strokeWidth={2.5}
+              dot={{ r: 4, strokeWidth: 2, fill: "#fff", stroke: DOMAIN_COLORS[i % DOMAIN_COLORS.length] }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+              connectNulls
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+
+      <p className="text-xs text-slate-400 mt-4 leading-relaxed text-center">
+        Track your progress as you make improvements. Most businesses see score improvements within 2–4 weeks of applying their fixes.
+      </p>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useUser();
   const [, navigate] = useLocation();
@@ -407,11 +530,14 @@ export default function Dashboard() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
-          {audits.map((audit) => (
-            <AuditCard key={audit.id} audit={audit} onViewResults={restoreAudit} />
-          ))}
-        </div>
+        <>
+          <div className="space-y-4">
+            {audits.map((audit) => (
+              <AuditCard key={audit.id} audit={audit} onViewResults={restoreAudit} />
+            ))}
+          </div>
+          <ScoreHistoryChart audits={audits} />
+        </>
       )}
     </div>
   );
