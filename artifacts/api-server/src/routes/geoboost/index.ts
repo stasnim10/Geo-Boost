@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
+import { Resend } from "resend";
 import { RunAuditBody, OptimizeContentBody, DetectCategoryBody } from "@workspace/api-zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db, auditsTable } from "@workspace/db";
@@ -299,6 +300,147 @@ ${content.slice(0, 6000)}
   } catch (err) {
     logger.error({ err }, "Claude optimization failed");
     res.status(500).json({ error: "Optimization failed", details: err instanceof Error ? err.message : "Unknown error" });
+  }
+});
+
+// ─── send-results ─────────────────────────────────────────────────────────────
+router.post("/geoboost/send-results", async (req, res): Promise<void> => {
+  const { email, url, category, aiVisibilityScore, semanticDensityScore, structuralFormattingScore, weaknesses, competitorPatterns } = req.body as {
+    email: string;
+    url: string;
+    category: string;
+    aiVisibilityScore: number;
+    semanticDensityScore: number;
+    structuralFormattingScore: number;
+    weaknesses: string[];
+    competitorPatterns: string[];
+  };
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Valid email address required" });
+    return;
+  }
+  if (!url || !category || typeof aiVisibilityScore !== "number" || !Array.isArray(weaknesses) || !Array.isArray(competitorPatterns)) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    res.status(503).json({ error: "Email service not configured. Add a RESEND_API_KEY to enable this feature." });
+    return;
+  }
+
+  const scoreColor = (s: number) => s >= 70 ? "#22c55e" : s >= 40 ? "#f59e0b" : "#ef4444";
+  const scoreLabel = (s: number) => s >= 70 ? "Good" : s >= 40 ? "Needs Work" : "Critical";
+
+  let hostname = url;
+  try { hostname = new URL(url).hostname; } catch { /* keep full url */ }
+
+  const appUrl = process.env.REPLIT_DOMAINS
+    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+    : "https://geoboost.app";
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GEO Audit Results</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,system-ui,-apple-system,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+<!-- Header -->
+<tr><td style="background:#0f172a;padding:28px 32px;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td><span style="color:#22c55e;font-size:22px;font-weight:800;letter-spacing:-0.5px;">📈 GEOboost</span>
+    <p style="color:#94a3b8;margin:8px 0 0;font-size:13px;">Your AI Visibility Audit Report</p></td>
+  </tr></table>
+</td></tr>
+
+<!-- URL / Category -->
+<tr><td style="padding:28px 32px 16px;">
+  <h1 style="margin:0 0 4px;font-size:20px;font-weight:700;color:#0f172a;">Audit Results</h1>
+  <p style="margin:0;color:#64748b;font-size:14px;word-break:break-all;">${url}</p>
+  <p style="margin:6px 0 0;color:#64748b;font-size:13px;">Category: <strong style="color:#0f172a;">${category}</strong></p>
+</td></tr>
+
+<!-- Scores -->
+<tr><td style="padding:0 20px 20px;">
+  <table width="100%" cellpadding="0" cellspacing="0">
+  <tr>
+    ${[["AI Visibility", aiVisibilityScore], ["Semantic Density", semanticDensityScore], ["Structure", structuralFormattingScore]].map(([label, score]) => `
+    <td width="33%" style="padding:6px;">
+      <div style="background:#f8fafc;border-radius:12px;padding:16px 8px;text-align:center;border:1px solid #e2e8f0;">
+        <div style="font-size:30px;font-weight:800;color:${scoreColor(score as number)};">${score}</div>
+        <div style="font-size:9px;font-weight:700;color:${scoreColor(score as number)};text-transform:uppercase;letter-spacing:0.5px;">${scoreLabel(score as number)}</div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px;">${label}</div>
+      </div>
+    </td>`).join("")}
+  </tr>
+  </table>
+</td></tr>
+
+<!-- Weaknesses -->
+<tr><td style="padding:0 32px 20px;">
+  <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#0f172a;">⚠️ Critical Weaknesses</h2>
+  ${weaknesses.map((w, i) => `
+  <div style="background:#fef2f2;border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #ef4444;">
+    <span style="color:#991b1b;font-size:12px;font-weight:700;margin-right:6px;">${i + 1}.</span>
+    <span style="color:#7f1d1d;font-size:13px;">${w}</span>
+  </div>`).join("")}
+</td></tr>
+
+<!-- Competitor patterns -->
+<tr><td style="padding:0 32px 24px;">
+  <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#0f172a;">🏆 What Top Competitors Do</h2>
+  ${competitorPatterns.map(p => `
+  <div style="background:#eff6ff;border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #3b82f6;">
+    <span style="color:#1e3a8a;font-size:13px;">⚡ ${p}</span>
+  </div>`).join("")}
+</td></tr>
+
+<!-- CTA -->
+<tr><td style="padding:0 32px 32px;">
+  <div style="background:#0f172a;border-radius:12px;padding:24px;text-align:center;">
+    <p style="color:#ffffff;font-size:16px;font-weight:700;margin:0 0 6px;">Ready to fix your AI visibility?</p>
+    <p style="color:#94a3b8;font-size:13px;margin:0 0 16px;">Start appearing in ChatGPT, Claude, and Perplexity answers.</p>
+    <a href="${appUrl}" style="display:inline-block;background:#22c55e;color:#ffffff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Optimize My Content — $149/mo</a>
+  </div>
+</td></tr>
+
+<!-- Footer -->
+<tr><td style="padding:16px 32px 24px;border-top:1px solid #f1f5f9;">
+  <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center;">GEOboost · Generative Engine Optimization · You requested this audit for ${hostname}.</p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  try {
+    const resend = new Resend(apiKey);
+    const from = process.env.RESEND_FROM_EMAIL || "GEOboost <onboarding@resend.dev>";
+
+    const { error } = await resend.emails.send({
+      from,
+      to: [email],
+      subject: `Your GEO Audit Results for ${hostname}`,
+      html,
+    });
+
+    if (error) {
+      req.log.warn({ error }, "Resend returned an error");
+      res.status(500).json({ error: (error as { message?: string }).message || "Failed to send email" });
+      return;
+    }
+
+    req.log.info({ email, url }, "Audit results email sent");
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Email send error");
+    res.status(500).json({ error: err instanceof Error ? err.message : "Unknown error" });
   }
 });
 

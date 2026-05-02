@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
-import { Show } from "@clerk/react";
+import { Show, useUser } from "@clerk/react";
 import { Gauge } from "@/components/gauge";
 import { AuditResult } from "@workspace/api-client-react";
-import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X } from "lucide-react";
+import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2 } from "lucide-react";
 
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
@@ -84,6 +84,112 @@ function CtaButton({ label, className = "" }: { label: string; className?: strin
       {loading && <Loader2 className="w-4 h-4 animate-spin" />}
       {loading ? "Redirecting to checkout…" : label}
     </button>
+  );
+}
+
+function EmailResultsSection({ result, category }: { result: AuditResult; category: string }) {
+  const { user } = useUser();
+  const [expanded, setExpanded] = useState(false);
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    const userEmail = user?.emailAddresses[0]?.emailAddress;
+    if (userEmail && !email) setEmail(userEmail);
+  }, [user, email]);
+
+  const send = async () => {
+    if (!email.trim()) return;
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/geoboost/send-results", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          email: email.trim(),
+          url: result.scrapedUrl,
+          category,
+          aiVisibilityScore: result.aiVisibilityScore,
+          semanticDensityScore: result.semanticDensityScore,
+          structuralFormattingScore: result.structuralFormattingScore,
+          weaknesses: result.weaknesses,
+          competitorPatterns: result.competitorPatterns,
+        }),
+      });
+      const data = await res.json() as { success?: boolean; error?: string };
+      if (res.ok) {
+        setStatus("sent");
+      } else {
+        setErrorMsg(data.error || "Failed to send email");
+        setStatus("error");
+      }
+    } catch {
+      setErrorMsg("Network error. Please try again.");
+      setStatus("error");
+    }
+  };
+
+  if (status === "sent") {
+    return (
+      <div className="mt-8 flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-5 py-4">
+        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
+        <div>
+          <p className="font-semibold text-green-800 text-sm">Sent! Check your inbox.</p>
+          <p className="text-green-700 text-xs mt-0.5">We sent your full audit report to <strong>{email}</strong>.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
+            <Mail className="w-4 h-4 text-slate-600" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900 text-sm">Email these results</p>
+            <p className="text-xs text-slate-500">Send a copy to any inbox — yours or a client's</p>
+          </div>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
+      </button>
+
+      {expanded && (
+        <div className="px-6 pb-5 border-t border-slate-100">
+          <label className="block text-xs font-semibold text-slate-600 mb-2 mt-4">Email address</label>
+          <div className="flex gap-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
+              onKeyDown={(e) => e.key === "Enter" && send()}
+              placeholder="you@example.com"
+              className="flex-1 px-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+            <button
+              onClick={send}
+              disabled={status === "sending" || !email.trim()}
+              style={{ backgroundColor: status === "sending" || !email.trim() ? undefined : "#22c55e" }}
+              className="px-5 py-2.5 text-white text-sm font-bold rounded-lg hover:opacity-90 transition-opacity disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2 whitespace-nowrap"
+            >
+              {status === "sending" && <Loader2 className="w-3 h-3 animate-spin" />}
+              {status === "sending" ? "Sending…" : "Send"}
+            </button>
+          </div>
+          {status === "error" && (
+            <p className="text-red-600 text-xs mt-2">{errorMsg}</p>
+          )}
+          <p className="text-xs text-slate-400 mt-2">A formatted summary of your audit — no spam, ever.</p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -261,8 +367,10 @@ export default function Results() {
         </div>
       </div>
 
+      <EmailResultsSection result={result} category={category} />
+
       {/* Bottom CTA */}
-      <div className="mt-12 bg-[#0f172a] rounded-2xl p-8 text-center text-white">
+      <div className="mt-8 bg-[#0f172a] rounded-2xl p-8 text-center text-white">
         <h2 className="text-2xl font-extrabold mb-2">Stop losing {formatMoney(roi.amount)}/month to competitors</h2>
         <p className="text-slate-400 mb-6 max-w-xl mx-auto">
           GEOboost rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking.
