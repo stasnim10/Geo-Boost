@@ -3,7 +3,7 @@ import { getAuth } from "@clerk/express";
 import { Resend } from "resend";
 import { RunAuditBody, OptimizeContentBody, DetectCategoryBody } from "@workspace/api-zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { db, auditsTable, sharedResultsTable } from "@workspace/db";
+import { db, auditsTable, sharedResultsTable, waitlistTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
@@ -442,6 +442,45 @@ router.post("/geoboost/send-results", async (req, res): Promise<void> => {
   } catch (err) {
     logger.error({ err }, "Email send error");
     res.status(500).json({ error: err instanceof Error ? err.message : "Unknown error" });
+  }
+});
+
+// ─── scrape-content ───────────────────────────────────────────────────────────
+router.post("/geoboost/scrape-content", async (req, res): Promise<void> => {
+  const { url } = req.body as { url?: string };
+  if (!url || typeof url !== "string") {
+    res.status(400).json({ error: "url is required" });
+    return;
+  }
+  try {
+    const content = await scrapeUrl(url);
+    res.json({ content });
+  } catch (err) {
+    req.log.warn({ err, url }, "scrape-content failed");
+    res.status(400).json({ error: "Could not fetch that URL. Make sure it's publicly accessible." });
+  }
+});
+
+// ─── waitlist ─────────────────────────────────────────────────────────────────
+router.post("/waitlist", async (req, res): Promise<void> => {
+  const { name, email, websiteUrl, platform } = req.body as {
+    name?: string; email?: string; websiteUrl?: string; platform?: string;
+  };
+  if (!name || !email || !websiteUrl || !platform) {
+    res.status(400).json({ error: "All fields are required" });
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    res.status(400).json({ error: "Valid email required" });
+    return;
+  }
+  try {
+    await db.insert(waitlistTable).values({ name, email, websiteUrl, platform });
+    req.log.info({ email, platform }, "Waitlist signup");
+    res.json({ success: true });
+  } catch (err) {
+    logger.error({ err }, "Waitlist insert error");
+    res.status(500).json({ error: "Failed to save. Please try again." });
   }
 });
 

@@ -19,3 +19,4 @@
 
 export * from "./audits";
 export * from "./shared-results";
+export * from "./waitlist";

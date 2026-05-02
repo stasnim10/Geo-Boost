@@ -15,6 +15,7 @@ import Success from "@/pages/success";
 import Cancel from "@/pages/cancel";
 import Dashboard from "@/pages/dashboard";
 import SharedResultsPage from "@/pages/shared";
+import Upgrade from "@/pages/upgrade";
 
 const queryClient = new QueryClient();
 
@@ -158,6 +159,7 @@ function Router() {
         <Route path="/success" component={Success} />
         <Route path="/cancel" component={Cancel} />
         <Route path="/shared/:token" component={SharedResultsPage} />
+        <Route path="/upgrade" component={Upgrade} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
