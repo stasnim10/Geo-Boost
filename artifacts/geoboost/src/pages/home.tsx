@@ -476,9 +476,25 @@ export default function Home() {
                 {/* Suggestion chips */}
                 {querySuggestions.length > 0 && (
                   <div className="pt-1">
-                    <p className="text-xs text-slate-400 mb-2 font-medium">
-                      {aiQuerySuggestions.length > 0 ? "✨ AI-suggested queries — tap to add:" : "Tap to add a query:"}
-                    </p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs text-slate-400 font-medium">
+                        {aiQuerySuggestions.length > 0 ? "✨ AI-suggested queries — tap to add:" : "Tap to add a query:"}
+                      </p>
+                      {aiQuerySuggestions.length >= 3 && (!query1 || !query2 || !query3) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const top3 = aiQuerySuggestions.slice(0, 3);
+                            setQuery1(top3[0] ?? query1);
+                            setQuery2(top3[1] ?? query2);
+                            setQuery3(top3[2] ?? query3);
+                          }}
+                          className="text-xs font-bold px-3 py-1 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                        >
+                          Auto-fill all 3 ↑
+                        </button>
+                      )}
+                    </div>
                     <div className="flex flex-wrap gap-2">
                       {querySuggestions.map((s, i) => {
                         const alreadyUsed = [query1, query2, query3].includes(s);
