@@ -226,6 +226,7 @@ export default function Home() {
   const [category, setCategory] = useState("");
   const [categorySuggestion, setCategorySuggestion] = useState<{ label: string; source: "quick" | "server" } | null>(null);
   const [detectingCategory, setDetectingCategory] = useState(false);
+  const [aiQuerySuggestions, setAiQuerySuggestions] = useState<string[]>([]);
 
   const [location, setLocation] = useState("");
   const [detectingLocation, setDetectingLocation] = useState(false);
@@ -243,17 +244,20 @@ export default function Home() {
   // Extract city from location string for personalizing query chips
   const city = location.split(",")[0].trim();
   const activeCategory = category || categorySuggestion?.label || "";
-  const querySuggestions = activeCategory ? getSuggestions(activeCategory, city) : [];
+  // Prefer AI-generated suggestions from server; fall back to static list
+  const querySuggestions = aiQuerySuggestions.length > 0
+    ? aiQuerySuggestions
+    : activeCategory ? getSuggestions(activeCategory, city) : [];
 
   useEffect(() => {
     if (urlDebounce.current) clearTimeout(urlDebounce.current);
-    if (!url) { setCategorySuggestion(null); return; }
+    if (!url) { setCategorySuggestion(null); setAiQuerySuggestions([]); return; }
 
     // Instant client-side guess
     const quick = quickDetect(url);
     if (quick) setCategorySuggestion({ label: quick, source: "quick" });
 
-    // Server-side refinement after 800ms
+    // Server-side refinement after 800ms — now also returns AI query suggestions
     urlDebounce.current = setTimeout(async () => {
       try {
         const normalized = url.startsWith("http") ? url : `https://${url}`;
@@ -265,9 +269,12 @@ export default function Home() {
           body: JSON.stringify({ url: normalized }),
         });
         if (res.ok) {
-          const data = await res.json() as { category: string | null; confidence: string };
+          const data = await res.json() as { category: string | null; confidence: string; queries?: string[] };
           if (data.category) {
             setCategorySuggestion({ label: data.category, source: "server" });
+          }
+          if (data.queries && data.queries.length > 0) {
+            setAiQuerySuggestions(data.queries);
           }
         }
       } catch { /* ignore */ } finally {
@@ -469,7 +476,9 @@ export default function Home() {
                 {/* Suggestion chips */}
                 {querySuggestions.length > 0 && (
                   <div className="pt-1">
-                    <p className="text-xs text-slate-400 mb-2 font-medium">Tap to add a query:</p>
+                    <p className="text-xs text-slate-400 mb-2 font-medium">
+                      {aiQuerySuggestions.length > 0 ? "✨ AI-suggested queries — tap to add:" : "Tap to add a query:"}
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {querySuggestions.map((s, i) => {
                         const alreadyUsed = [query1, query2, query3].includes(s);

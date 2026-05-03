@@ -150,9 +150,70 @@ router.post("/geoboost/detect-category", async (req, res): Promise<void> => {
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
   try {
     const metadata = await scrapeMetadata(parsed.data.url);
-    res.json(detectCategoryFromText(metadata));
+    const regexResult = detectCategoryFromText(metadata);
+
+    // If regex got a high-confidence match, return it with AI-generated query suggestions
+    if (regexResult.category && regexResult.confidence === "high") {
+      // Fire off Claude in parallel to generate query suggestions
+      try {
+        const msg = await anthropic.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 256,
+          messages: [{
+            role: "user",
+            content: `Business metadata: ${metadata.slice(0, 800)}
+Category: ${regexResult.category}
+
+Generate exactly 5 short search queries that customers ask ChatGPT or Google when looking for a business like this. Make them specific and natural (e.g. "best dentist near me", "cosmetic dentist in Austin").
+
+Return ONLY a JSON array of 5 strings. No explanation.`,
+          }],
+        });
+        const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+        const match = text.match(/\[[\s\S]*?\]/);
+        const queries: string[] = match ? (JSON.parse(match[0]) as string[]).slice(0, 5) : [];
+        res.json({ ...regexResult, queries });
+      } catch {
+        res.json(regexResult);
+      }
+      return;
+    }
+
+    // Fallback: use Claude to detect category AND generate query suggestions
+    const msg = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 400,
+      messages: [{
+        role: "user",
+        content: `Analyze this business website metadata and identify what type of business it is.
+
+Website metadata:
+${metadata.slice(0, 1200)}
+
+Return ONLY valid JSON:
+{
+  "category": "<short business category, e.g. 'Dental Practice', 'Coffee Shop / Café', 'B2B SaaS / Tech', 'Home Services'>",
+  "queries": ["<query 1>", "<query 2>", "<query 3>", "<query 4>", "<query 5>"]
+}
+
+The queries should be realistic questions customers would ask ChatGPT or Google when searching for this type of business (e.g. "best dentist near me", "affordable HVAC repair").`,
+      }],
+    });
+
+    const text = msg.content[0].type === "text" ? msg.content[0].text : "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const data = JSON.parse(jsonMatch[0]) as { category?: string; queries?: string[] };
+      res.json({
+        category: data.category || regexResult.category,
+        confidence: "high" as const,
+        queries: Array.isArray(data.queries) ? data.queries.slice(0, 5) : [],
+      });
+    } else {
+      res.json(regexResult);
+    }
   } catch (err) {
-    req.log.warn({ err, url: parsed.data.url }, "detect-category scrape failed");
+    req.log.warn({ err, url: parsed.data.url }, "detect-category failed");
     res.status(400).json({ error: "Could not access website" });
   }
 });
