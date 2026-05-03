@@ -5,6 +5,7 @@ import {
   Loader2, TrendingUp, ExternalLink, Plus, Clock,
   Link2, Copy, Check, Mail, ChevronDown, BarChart2,
   Activity, CheckCircle2, XCircle, Settings, Send,
+  ArrowUp, ArrowDown, Minus,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -576,13 +577,48 @@ function MonitorTab() {
     ? new Date(results[0].checkedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null;
 
-  // Deduplicate — show only the latest result per query
+  // Build latest + previous per query (results are ordered newest first)
   const latest = new Map<string, QueryResult>();
+  const previous = new Map<string, QueryResult>();
   for (const r of results) {
-    if (!latest.has(r.query)) latest.set(r.query, r);
+    if (!latest.has(r.query)) {
+      latest.set(r.query, r);
+    } else if (!previous.has(r.query)) {
+      previous.set(r.query, r);
+    }
   }
   const rows = [...latest.values()];
   const citedCount = rows.filter(r => r.cited).length;
+
+  type Trend = "improved" | "dropped" | "same" | "new";
+  function getTrend(r: QueryResult): Trend {
+    const prev = previous.get(r.query);
+    if (!prev) return "new";
+    if (!prev.cited && r.cited) return "improved";
+    if (prev.cited && !r.cited) return "dropped";
+    return "same";
+  }
+
+  function TrendBadge({ trend }: { trend: Trend }) {
+    if (trend === "improved") return (
+      <span className="inline-flex items-center gap-0.5 text-xs font-bold text-green-600">
+        <ArrowUp className="w-3 h-3" />Improved
+      </span>
+    );
+    if (trend === "dropped") return (
+      <span className="inline-flex items-center gap-0.5 text-xs font-bold text-red-500">
+        <ArrowDown className="w-3 h-3" />Dropped
+      </span>
+    );
+    if (trend === "same") return (
+      <span className="inline-flex items-center gap-0.5 text-xs text-slate-400">
+        <Minus className="w-3 h-3" />Same
+      </span>
+    );
+    return (
+      <span className="text-xs text-slate-400 italic">First check</span>
+    );
+  }
 
   return (
     <div>
@@ -644,36 +680,41 @@ function MonitorTab() {
           <thead>
             <tr className="bg-slate-50 border-b border-slate-100">
               <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Query</th>
-              <th className="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide w-28">Cited?</th>
+              <th className="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wide w-32">Status</th>
               <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wide">Why</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 align-top">
-                  <p className="text-sm font-semibold text-slate-900 leading-snug">"{r.query}"</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{r.domain}</p>
-                </td>
-                <td className="px-6 py-4 align-top text-center">
-                  {r.cited ? (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
-                      <CheckCircle2 className="w-3 h-3" />
-                      Yes
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-                      <XCircle className="w-3 h-3" />
-                      No
-                    </span>
-                  )}
-                  <p className="text-xs text-slate-400 mt-1">{r.confidence} conf.</p>
-                </td>
-                <td className="px-6 py-4 align-top">
-                  <p className="text-sm text-slate-600 leading-relaxed">{r.reason}</p>
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const trend = getTrend(r);
+              return (
+                <tr key={r.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 align-top">
+                    <p className="text-sm font-semibold text-slate-900 leading-snug">"{r.query}"</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{r.domain}</p>
+                  </td>
+                  <td className="px-6 py-4 align-top text-center">
+                    <div className="flex flex-col items-center gap-1.5">
+                      {r.cited ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-green-50 text-green-700 border border-green-200">
+                          <CheckCircle2 className="w-3 h-3" />
+                          Cited
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                          <XCircle className="w-3 h-3" />
+                          Not cited
+                        </span>
+                      )}
+                      <TrendBadge trend={trend} />
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <p className="text-sm text-slate-600 leading-relaxed">{r.reason}</p>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
