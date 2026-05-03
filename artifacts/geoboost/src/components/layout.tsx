@@ -94,6 +94,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <Link href="/compare" className="text-sm text-slate-300 hover:text-white transition-colors font-medium hidden sm:block">
             Compare
           </Link>
+          <Link href="/pricing" className="text-sm text-slate-300 hover:text-white transition-colors font-medium hidden sm:block">
+            Pricing
+          </Link>
 
           <Show when="signed-in">
             <Link href="/dashboard" className="text-sm text-slate-300 hover:text-white transition-colors font-medium hidden sm:block">

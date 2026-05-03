@@ -19,6 +19,8 @@ import Upgrade from "@/pages/upgrade";
 import FixPage from "@/pages/fix";
 import FixSuccess from "@/pages/fix-success";
 import Compare from "@/pages/compare";
+import Pricing from "@/pages/pricing";
+import MonitorSetup from "@/pages/monitor-setup";
 
 const queryClient = new QueryClient();
 
@@ -166,6 +168,8 @@ function Router() {
         <Route path="/fix" component={FixPage} />
         <Route path="/fix-success" component={FixSuccess} />
         <Route path="/compare" component={Compare} />
+        <Route path="/pricing" component={Pricing} />
+        <Route path="/monitor-setup" component={MonitorSetup} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

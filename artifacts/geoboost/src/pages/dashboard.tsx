@@ -430,6 +430,69 @@ function ScoreHistoryChart({ audits }: { audits: SavedAudit[] }) {
   );
 }
 
+function GrowUpsellPanel() {
+  return (
+    <div className="mt-8 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+      <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-white font-bold text-sm">Grow Plan</span>
+              <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded-full">Locked</span>
+            </div>
+            <p className="text-slate-400 text-xs">See how you stack up against your top 3 competitors in AI visibility</p>
+          </div>
+        </div>
+        <Link href="/pricing">
+          <button className="flex-shrink-0 px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap">
+            Upgrade — $99/mo
+          </button>
+        </Link>
+      </div>
+      <div className="relative bg-white p-6">
+        <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center rounded-b-2xl">
+          <div className="text-center">
+            <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              <span className="text-2xl">🔒</span>
+            </div>
+            <p className="text-sm font-bold text-slate-800 mb-1">Competitor AI Visibility Tracking</p>
+            <p className="text-xs text-slate-500 max-w-xs">See how often AI recommends your top 3 competitors vs. you — and exactly why they're winning.</p>
+            <Link href="/pricing">
+              <button style={{ backgroundColor: "#22c55e" }} className="mt-4 px-6 py-2 text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity">
+                Upgrade to Grow — $99/month
+              </button>
+            </Link>
+          </div>
+        </div>
+        <div className="blur-sm pointer-events-none select-none">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">AI Visibility Comparison — This Week</p>
+          <div className="space-y-3">
+            {[
+              { name: "Your Business", score: 38, color: "#ef4444" },
+              { name: "Competitor A", score: 72, color: "#22c55e" },
+              { name: "Competitor B", score: 61, color: "#f59e0b" },
+              { name: "Competitor C", score: 55, color: "#f59e0b" },
+            ].map(({ name, score, color }) => (
+              <div key={name}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-700 font-medium">{name}</span>
+                  <span className="font-bold" style={{ color }}>{score}/100</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${score}%`, backgroundColor: color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useUser();
   const [, navigate] = useLocation();
@@ -537,6 +600,7 @@ export default function Dashboard() {
             ))}
           </div>
           <ScoreHistoryChart audits={audits} />
+          <GrowUpsellPanel />
         </>
       )}
     </div>

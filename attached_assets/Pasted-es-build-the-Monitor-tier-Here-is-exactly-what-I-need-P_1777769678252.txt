@@ -1,0 +1,60 @@
+es build the Monitor tier. Here is exactly what I need:
+PRICING RESTRUCTURE:
+Update all pricing across the app to this structure:
+
+Free: One audit per domain per month
+Fix Package: $49 one-time — content optimizer plus full fix plan
+Monitor: $29/month — weekly automated re-audits on 1 domain, 5 tracked AI queries, email alerts when score changes
+Grow: $99/month — 3 domains, 20 tracked queries, competitor tracking, monthly PDF report
+Remove the $149/month plan entirely
+
+MONITOR TIER FEATURES:
+1. TRACKED QUERIES SETUP:
+After a user subscribes to Monitor tier, show a setup page where they enter:
+
+Their domain (pre-filled from their last audit)
+Up to 5 queries they want to track (pre-filled with their audit queries)
+Their email for weekly reports
+Save these to a tracked_queries database table with columns: user_id, domain, query, created_at
+
+2. WEEKLY AUTOMATED RE-AUDIT:
+Create a scheduled job that runs every Monday at 8am that:
+
+For each active Monitor subscriber, re-runs their full audit
+Saves the new scores to audit_history table with timestamp
+Compares new scores to previous week scores
+Detects score changes greater than 5 points
+
+3. AI PROMPT TRACKING:
+For each of the users 5 tracked queries, run this check weekly:
+
+Send the query to Claude with this prompt: You are simulating what ChatGPT would recommend when a user asks [query]. Based on general knowledge, would a business called [business name] at [domain] likely be recommended? Check if the domain has characteristics that would make it citable. Return JSON with: cited (boolean), confidence (low/medium/high), reason (one sentence), suggestion (one sentence improvement tip)
+Save result to query_tracking table with: query, cited, confidence, reason, suggestion, checked_at
+
+4. WEEKLY EMAIL REPORT:
+Every Monday after the checks run, send each Monitor subscriber an email via Resend API using RESEND_API_KEY environment variable. Email format:
+Subject: Your AI Visibility Report — [Business Name] — Week of [date]
+Header: Your Weekly AI Visibility Update
+Section 1 — Your Score This Week:
+Show current score vs last week with arrow up or down and point change
+Green if improved, red if dropped, gray if unchanged
+Section 2 — Your 5 Tracked Queries:
+For each query show:
+
+Query text
+Cited this week: Yes or No with confidence level
+One sentence reason
+One sentence tip
+
+Section 3 — Your Top Priority This Week:
+Single most impactful thing they can do based on their current weaknesses
+Green button: View Full Report — links to their dashboard
+Footer: You are on the Monitor plan — dollar 29/month. Manage subscription link.
+5. SCORE HISTORY CHART:
+On the dashboard, show a line chart of their AI Visibility Score over time. X axis is date, Y axis is 0-100. Green reference line at 70 labeled Good Visibility. Caption: Most businesses see improvement within 2-4 weeks of applying fixes.
+6. STRIPE SETUP FOR MONITOR TIER:
+Create a new Stripe checkout session route for dollar 29/month recurring subscription called GEOboost Monitor. Update the pricing page to show all four tiers clearly. The Monitor tier should be the most visually prominent — highlight it as Most Popular.
+7. COMPETITOR TRACKING PREVIEW (for Grow tier upsell):
+On the Monitor dashboard, add a locked section labeled Grow Plan — showing a blurred competitor comparison table with a lock icon and text: See how you compare to your top 3 competitors in AI visibility. Upgrade to Grow — dollar 99/month. This creates urgency to upgrade without building the full feature yet.
+Use Resend for emails — install the resend npm package. Store RESEND_API_KEY as environment variable.
+Build the database tables, the weekly job, the email template, and the Stripe integration. Test the email by sending a manual trigger endpoint at /api/send-test-report that fires one report immediately for testing.

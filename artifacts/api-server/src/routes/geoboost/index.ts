@@ -515,7 +515,7 @@ router.post("/geoboost/send-results", async (req, res): Promise<void> => {
   <div style="background:#0f172a;border-radius:12px;padding:24px;text-align:center;">
     <p style="color:#ffffff;font-size:16px;font-weight:700;margin:0 0 6px;">Ready to fix your AI visibility?</p>
     <p style="color:#94a3b8;font-size:13px;margin:0 0 16px;">Start appearing in ChatGPT, Claude, and Perplexity answers.</p>
-    <a href="${appUrl}" style="display:inline-block;background:#22c55e;color:#ffffff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Optimize My Content — $149/mo</a>
+    <a href="${appUrl}/pricing" style="display:inline-block;background:#22c55e;color:#ffffff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Monitor My Progress — $29/mo</a>
   </div>
 </td></tr>
 

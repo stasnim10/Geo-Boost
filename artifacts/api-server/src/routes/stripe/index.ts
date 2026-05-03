@@ -7,7 +7,7 @@ const router: IRouter = Router();
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) throw new Error("STRIPE_SECRET_KEY is not set");
-  return new Stripe(key, { apiVersion: "2025-04-30.basil" });
+  return new Stripe(key, { apiVersion: "2026-04-22.dahlia" });
 }
 
 function getBaseUrl(): string {
@@ -55,6 +55,90 @@ router.post("/create-checkout-session", async (req, res): Promise<void> => {
     res.json({ url: session.url });
   } catch (err) {
     logger.error({ err }, "Failed to create Stripe checkout session");
+    res.status(500).json({
+      error: "Could not create checkout session",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+});
+
+router.post("/create-monitor-checkout", async (req, res): Promise<void> => {
+  try {
+    const stripe = getStripe();
+    const base = getBaseUrl();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            recurring: { interval: "month" },
+            product_data: {
+              name: "GEOboost Monitor",
+              description: "Weekly AI visibility re-audits, 5 tracked queries, email reports every Monday.",
+            },
+            unit_amount: 2900,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${base}/monitor-setup?checkout=success`,
+      cancel_url: `${base}/pricing`,
+      allow_promotion_codes: true,
+    });
+
+    if (!session.url) {
+      res.status(500).json({ error: "Stripe did not return a session URL" });
+      return;
+    }
+
+    logger.info({ sessionId: session.id }, "Monitor checkout session created");
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err }, "Failed to create Monitor checkout session");
+    res.status(500).json({
+      error: "Could not create checkout session",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+});
+
+router.post("/create-grow-checkout", async (req, res): Promise<void> => {
+  try {
+    const stripe = getStripe();
+    const base = getBaseUrl();
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            recurring: { interval: "month" },
+            product_data: {
+              name: "GEOboost Grow",
+              description: "3 domains, 20 tracked queries, competitor tracking, monthly PDF report.",
+            },
+            unit_amount: 9900,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${base}/monitor-setup?checkout=success`,
+      cancel_url: `${base}/pricing`,
+      allow_promotion_codes: true,
+    });
+
+    if (!session.url) {
+      res.status(500).json({ error: "Stripe did not return a session URL" });
+      return;
+    }
+
+    logger.info({ sessionId: session.id }, "Grow checkout session created");
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err }, "Failed to create Grow checkout session");
     res.status(500).json({
       error: "Could not create checkout session",
       details: err instanceof Error ? err.message : "Unknown error",
