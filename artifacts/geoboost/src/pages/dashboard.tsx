@@ -4,7 +4,7 @@ import { useUser } from "@clerk/react";
 import {
   Loader2, TrendingUp, ExternalLink, Plus, Clock,
   Link2, Copy, Check, Mail, ChevronDown, BarChart2,
-  Activity, CheckCircle2, XCircle, Settings,
+  Activity, CheckCircle2, XCircle, Settings, Send,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -447,6 +447,30 @@ function MonitorTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasSetup, setHasSetup] = useState<boolean | null>(null);
+  const [testStatus, setTestStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [testError, setTestError] = useState("");
+
+  const sendTestReport = async () => {
+    setTestStatus("sending");
+    setTestError("");
+    try {
+      const res = await fetch("/api/monitor/send-test-report", {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json() as { success?: boolean; message?: string; error?: string };
+      if (res.ok && data.success) {
+        setTestStatus("sent");
+        setTimeout(() => setTestStatus("idle"), 6000);
+      } else {
+        setTestError(data.error ?? "Failed to send report");
+        setTestStatus("error");
+      }
+    } catch {
+      setTestError("Network error. Try again.");
+      setTestStatus("error");
+    }
+  };
 
   useEffect(() => {
     Promise.all([
@@ -513,14 +537,36 @@ function MonitorTab() {
         </div>
         <h2 className="text-xl font-bold text-slate-900 mb-2">Waiting for first check</h2>
         <p className="text-slate-500 mb-8 max-w-sm mx-auto text-sm">
-          Your queries are set up. Results will appear here after the first weekly scan, or you can trigger a test run from the monitor setup page.
+          Your queries are set up. Results will appear here after the first weekly scan, or trigger one now to see them immediately.
         </p>
-        <Link href="/monitor-setup">
-          <button className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white font-bold rounded-lg hover:bg-slate-800 transition-colors text-sm">
-            <Settings className="w-4 h-4" />
-            View Setup
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            onClick={sendTestReport}
+            disabled={testStatus === "sending" || testStatus === "sent"}
+            style={testStatus === "sent" ? { backgroundColor: "#22c55e" } : testStatus !== "sending" ? { backgroundColor: "#0f172a" } : undefined}
+            className="inline-flex items-center gap-2 px-6 py-2.5 text-white font-bold rounded-lg hover:opacity-90 transition-opacity disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+          >
+            {testStatus === "sending" ? (
+              <><Loader2 className="w-4 h-4 animate-spin" />Running check…</>
+            ) : testStatus === "sent" ? (
+              <><Check className="w-4 h-4" />Report sent!</>
+            ) : (
+              <><Send className="w-4 h-4" />Run check now</>
+            )}
           </button>
-        </Link>
+          <Link href="/monitor-setup">
+            <button className="inline-flex items-center gap-2 px-6 py-2.5 border border-slate-200 text-slate-600 font-bold rounded-lg hover:bg-slate-50 transition-colors text-sm">
+              <Settings className="w-4 h-4" />
+              Edit setup
+            </button>
+          </Link>
+        </div>
+        {testStatus === "error" && (
+          <p className="text-red-600 text-xs mt-4">{testError}</p>
+        )}
+        {testStatus === "sent" && (
+          <p className="text-green-700 text-xs mt-4">Check your inbox — results will also appear on this page after refreshing.</p>
+        )}
       </div>
     );
   }
@@ -562,14 +608,36 @@ function MonitorTab() {
 
       {/* Results table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between gap-3">
           <h2 className="text-sm font-extrabold text-slate-900">Tracked Query Results</h2>
-          <Link href="/monitor-setup">
-            <button className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors">
-              <Settings className="w-3.5 h-3.5" />
-              Edit queries
+          <div className="flex items-center gap-3">
+            {testStatus === "sent" && (
+              <span className="flex items-center gap-1 text-xs font-semibold text-green-700">
+                <Check className="w-3.5 h-3.5" />
+                Report sent!
+              </span>
+            )}
+            {testStatus === "error" && (
+              <span className="text-xs text-red-600">{testError}</span>
+            )}
+            <button
+              onClick={sendTestReport}
+              disabled={testStatus === "sending" || testStatus === "sent"}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+            >
+              {testStatus === "sending" ? (
+                <><Loader2 className="w-3 h-3 animate-spin" />Running…</>
+              ) : (
+                <><Send className="w-3 h-3" />Run check now</>
+              )}
             </button>
-          </Link>
+            <Link href="/monitor-setup">
+              <button className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors">
+                <Settings className="w-3.5 h-3.5" />
+                Edit queries
+              </button>
+            </Link>
+          </div>
         </div>
 
         <table className="w-full">
