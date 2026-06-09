@@ -1,11 +1,12 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
 import { Resend } from "resend";
-import { db, trackedQueriesTable, queryTrackingTable, auditsTable } from "@workspace/db";
+import { db, trackedQueriesTable, queryTrackingTable, auditsTable, monitorReportLogsTable } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { eq, desc, and } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../audits/index";
+import { parseLLMJson } from "../../lib/parse-llm-json";
 
 const router: IRouter = Router();
 
@@ -101,9 +102,9 @@ Return ONLY valid JSON:
       }],
     });
     const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON");
-    const data = JSON.parse(match[0]) as { cited: boolean; confidence: string; reason: string; suggestion: string };
+    const result = parseLLMJson<{ cited: boolean; confidence: string; reason: string; suggestion: string }>(text);
+    if (!result.ok) throw new Error(result.error);
+    const data = result.data;
     return {
       cited: Boolean(data.cited),
       confidence: (["low", "medium", "high"].includes(data.confidence) ? data.confidence : "low") as "low" | "medium" | "high",
@@ -112,6 +113,26 @@ Return ONLY valid JSON:
     };
   } catch {
     return { cited: false, confidence: "low", reason: "Could not determine citation status.", suggestion: "Improve content clarity and specificity." };
+  }
+}
+
+// ─── sendEmailWithRetry ───────────────────────────────────────────────────────
+async function sendEmailWithRetry(
+  resend: Resend,
+  opts: Parameters<Resend["emails"]["send"]>[0],
+  clerkUserId: string,
+  maxAttempts = 3,
+): Promise<void> {
+  const backoffMs = [2000, 4000, 8000];
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const { error } = await resend.emails.send(opts);
+    if (!error) return;
+    logger.warn({ error, clerkUserId, attempt: attempt + 1 }, "Email send attempt failed");
+    if (attempt < maxAttempts - 1) {
+      await new Promise<void>(resolve => setTimeout(resolve, backoffMs[attempt]));
+    } else {
+      throw new Error(`Email failed after ${maxAttempts} attempts: ${JSON.stringify(error)}`);
+    }
   }
 }
 
@@ -215,9 +236,37 @@ function buildWeeklyReportEmail(opts: {
 </html>`;
 }
 
+// ─── getThisMondayKey ─────────────────────────────────────────────────────────
+function getThisMondayKey(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() + diff);
+  return monday.toISOString().slice(0, 10);
+}
+
 // ─── runWeeklyReportForUser ───────────────────────────────────────────────────
-async function runWeeklyReportForUser(setup: { clerkUserId: string; domain: string; queries: string[]; email: string }): Promise<void> {
+async function runWeeklyReportForUser(
+  setup: { clerkUserId: string; domain: string; queries: string[]; email: string },
+  weekKey: string,
+): Promise<void> {
   const { clerkUserId, domain, queries, email } = setup;
+
+  const [existing] = await db.select()
+    .from(monitorReportLogsTable)
+    .where(and(
+      eq(monitorReportLogsTable.clerkUserId, clerkUserId),
+      eq(monitorReportLogsTable.weekKey, weekKey),
+      eq(monitorReportLogsTable.status, "success"),
+    ))
+    .limit(1);
+
+  if (existing) {
+    logger.info({ clerkUserId, weekKey }, "Weekly report already sent for this week, skipping");
+    return;
+  }
+
   const appUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
     : "http://localhost:80";
@@ -265,16 +314,28 @@ async function runWeeklyReportForUser(setup: { clerkUserId: string; domain: stri
     appUrl, dashboardUrl: `${appUrl}/dashboard`,
   });
 
-  const { error } = await resend.emails.send({
-    from, to: [email],
+  const emailOpts = {
+    from,
+    to: [email],
     subject: `Your AI Visibility Report — ${domain} — Week of ${new Date().toLocaleDateString("en-US", { month: "short", day: "numeric" })}`,
     html,
-  });
+  };
 
-  if (error) {
-    logger.warn({ error, clerkUserId, domain }, "Weekly report email failed");
-  } else {
+  try {
+    await sendEmailWithRetry(resend, emailOpts, clerkUserId);
+    await db.insert(monitorReportLogsTable).values({ clerkUserId, weekKey, status: "success" })
+      .onConflictDoUpdate({
+        target: [monitorReportLogsTable.clerkUserId, monitorReportLogsTable.weekKey],
+        set: { status: "success", sentAt: new Date() },
+      });
     logger.info({ clerkUserId, domain, score: currentScore }, "Weekly report sent");
+  } catch (err) {
+    await db.insert(monitorReportLogsTable).values({ clerkUserId, weekKey, status: "failed" })
+      .onConflictDoUpdate({
+        target: [monitorReportLogsTable.clerkUserId, monitorReportLogsTable.weekKey],
+        set: { status: "failed", sentAt: new Date() },
+      });
+    logger.error({ err, clerkUserId, domain }, "Weekly report email failed after all retries");
   }
 }
 
@@ -292,7 +353,11 @@ router.post("/send-test-report", requireAuth, async (req, res): Promise<void> =>
       res.status(404).json({ error: "No monitor setup found. Please go to /monitor-setup first." });
       return;
     }
-    await runWeeklyReportForUser({ clerkUserId: userId, domain: setup.domain, queries: setup.queries, email: setup.email });
+    const weekKey = `test-${new Date().toISOString().slice(0, 10)}-${Date.now()}`;
+    await runWeeklyReportForUser(
+      { clerkUserId: userId, domain: setup.domain, queries: setup.queries, email: setup.email },
+      weekKey,
+    );
     res.json({ success: true, message: `Test report sent to ${setup.email}` });
   } catch (err) {
     logger.error({ err }, "Test report failed");
@@ -303,15 +368,6 @@ router.post("/send-test-report", requireAuth, async (req, res): Promise<void> =>
 // ─── Weekly scheduler ─────────────────────────────────────────────────────────
 let lastWeeklyRun: string | null = null;
 
-function getThisMondayKey(): string {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  const monday = new Date(now);
-  monday.setDate(now.getDate() + diff);
-  return monday.toISOString().slice(0, 10);
-}
-
 async function runWeeklyJobIfDue(): Promise<void> {
   const now = new Date();
   const isMonday = now.getDay() === 1;
@@ -319,13 +375,16 @@ async function runWeeklyJobIfDue(): Promise<void> {
   const weekKey = getThisMondayKey();
   if (!isMonday || !isAfter8am || lastWeeklyRun === weekKey) return;
   lastWeeklyRun = weekKey;
-  logger.info("Running weekly Monitor reports");
+  logger.info({ weekKey }, "Running weekly Monitor reports");
   try {
     const setups = await db.select().from(trackedQueriesTable)
       .where(eq(trackedQueriesTable.active, true));
     for (const setup of setups) {
       try {
-        await runWeeklyReportForUser({ clerkUserId: setup.clerkUserId, domain: setup.domain, queries: setup.queries, email: setup.email });
+        await runWeeklyReportForUser(
+          { clerkUserId: setup.clerkUserId, domain: setup.domain, queries: setup.queries, email: setup.email },
+          weekKey,
+        );
       } catch (err) {
         logger.error({ err, userId: setup.clerkUserId }, "Weekly report failed for user");
       }
@@ -336,8 +395,50 @@ async function runWeeklyJobIfDue(): Promise<void> {
   }
 }
 
+// ─── Startup catch-up ─────────────────────────────────────────────────────────
+// Runs once on server start: if it's Monday after 8am and any Monitor users
+// haven't received their report yet this week, send it now.
+export async function runStartupCatchup(): Promise<void> {
+  const now = new Date();
+  const isMonday = now.getDay() === 1;
+  const isAfter8am = now.getHours() >= 8;
+  if (!isMonday || !isAfter8am) return;
+
+  const weekKey = getThisMondayKey();
+  try {
+    const setups = await db.select().from(trackedQueriesTable)
+      .where(eq(trackedQueriesTable.active, true));
+    if (setups.length === 0) return;
+
+    const alreadySent = await db.select()
+      .from(monitorReportLogsTable)
+      .where(and(
+        eq(monitorReportLogsTable.weekKey, weekKey),
+        eq(monitorReportLogsTable.status, "success"),
+      ));
+
+    const sentUserIds = new Set(alreadySent.map(r => r.clerkUserId));
+    const missed = setups.filter(s => !sentUserIds.has(s.clerkUserId));
+
+    if (missed.length === 0) {
+      logger.info({ weekKey }, "Startup catch-up: all Monitor reports already sent for this week");
+      return;
+    }
+
+    logger.info({ count: missed.length, weekKey }, "Startup catch-up: sending missed Monitor reports");
+    for (const setup of missed) {
+      await new Promise<void>(resolve => setTimeout(resolve, 500));
+      runWeeklyReportForUser(
+        { clerkUserId: setup.clerkUserId, domain: setup.domain, queries: setup.queries, email: setup.email },
+        weekKey,
+      ).catch(err => logger.error({ err, userId: setup.clerkUserId }, "Startup catch-up report failed"));
+    }
+  } catch (err) {
+    logger.error({ err }, "Startup catch-up query failed");
+  }
+}
+
 setInterval(() => { runWeeklyJobIfDue().catch(err => logger.error({ err }, "Weekly scheduler error")); }, 60 * 60 * 1000);
-setTimeout(() => { runWeeklyJobIfDue().catch(err => logger.error({ err }, "Weekly scheduler startup error")); }, 5000);
 
 export { runWeeklyReportForUser };
 export default router;

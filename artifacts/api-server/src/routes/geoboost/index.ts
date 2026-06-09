@@ -6,6 +6,7 @@ import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db, auditsTable, sharedResultsTable, waitlistTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { parseLLMJson } from "../../lib/parse-llm-json";
 
 const router: IRouter = Router();
 
@@ -60,14 +61,24 @@ interface ScrapeResult {
   text: string;
   listCount: number;
   hasShortAnswerSections: boolean;
+  partial?: boolean;
 }
 
 async function scrapeUrlFull(url: string): Promise<ScrapeResult> {
-  const response = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; GEOboost/1.0; +https://geoboost.app)" },
-    signal: AbortSignal.timeout(15000),
-  });
-  if (!response.ok) throw new Error(`Failed to fetch URL: ${response.status} ${response.statusText}`);
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; GEOboost/1.0; +https://geoboost.app)" },
+      signal: AbortSignal.timeout(15000),
+    });
+  } catch (err) {
+    logger.warn({ err, url }, "scrapeUrlFull: network error, returning partial result");
+    return { text: "", listCount: 0, hasShortAnswerSections: false, partial: true };
+  }
+  if (!response.ok) {
+    logger.warn({ url, status: response.status }, "scrapeUrlFull: non-2xx response, returning partial result");
+    return { text: "", listCount: 0, hasShortAnswerSections: false, partial: true };
+  }
   const html = await response.text();
 
   const listMatches = html.match(/<(ul|ol|li)[^>]*>/gi);
@@ -170,8 +181,8 @@ Return ONLY a JSON array of 5 strings. No explanation.`,
           }],
         });
         const text = msg.content[0].type === "text" ? msg.content[0].text : "";
-        const match = text.match(/\[[\s\S]*?\]/);
-        const queries: string[] = match ? (JSON.parse(match[0]) as string[]).slice(0, 5) : [];
+        const llmQueries = parseLLMJson<string[]>(text);
+        const queries: string[] = llmQueries.ok && Array.isArray(llmQueries.data) ? llmQueries.data.slice(0, 5) : [];
         res.json({ ...regexResult, queries });
       } catch {
         res.json(regexResult);
@@ -201,13 +212,12 @@ The queries should be realistic questions customers would ask ChatGPT or Google 
     });
 
     const text = msg.content[0].type === "text" ? msg.content[0].text : "";
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]) as { category?: string; queries?: string[] };
+    const llmCategory = parseLLMJson<{ category?: string; queries?: string[] }>(text);
+    if (llmCategory.ok) {
       res.json({
-        category: data.category || regexResult.category,
+        category: llmCategory.data.category || regexResult.category,
         confidence: "high" as const,
-        queries: Array.isArray(data.queries) ? data.queries.slice(0, 5) : [],
+        queries: Array.isArray(llmCategory.data.queries) ? llmCategory.data.queries.slice(0, 5) : [],
       });
     } else {
       res.json(regexResult);
@@ -282,19 +292,16 @@ router.post("/geoboost/audit", async (req, res): Promise<void> => {
   const { url, category, queries, name, email, location } = parsed.data;
   req.log.info({ url, category, location, name, email }, "Starting audit");
 
-  let scrapeResult: ScrapeResult;
-  try {
-    scrapeResult = await scrapeUrlFull(url);
-  } catch (err) {
-    req.log.warn({ err, url }, "Failed to scrape URL");
-    res.status(400).json({ error: "Could not access website", details: err instanceof Error ? err.message : "Unknown error" });
-    return;
-  }
-
+  const scrapeResult = await scrapeUrlFull(url);
   const scrapedContent = scrapeResult.text;
 
-  if (!scrapedContent || scrapedContent.length < 50) {
-    res.status(400).json({ error: "Could not extract content from website", details: "The page appears to have no readable text content." });
+  if (scrapeResult.partial || !scrapedContent || scrapedContent.length < 50) {
+    res.status(400).json({
+      error: "Could not access website",
+      details: scrapeResult.partial
+        ? "The site blocked our request or is not publicly accessible. Please check the URL and try again."
+        : "The page appears to have no readable text content.",
+    });
     return;
   }
 
@@ -356,16 +363,15 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
     ]);
 
     const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Claude did not return valid JSON");
-
-    const auditData = JSON.parse(jsonMatch[0]) as {
+    const auditParsed = parseLLMJson<{
       aiVisibilityScore: number;
       semanticDensityScore: number;
       structuralFormattingScore: number;
       weaknesses: string[];
       competitorPatterns: string[];
-    };
+    }>(responseText);
+    if (!auditParsed.ok) throw new Error(`Claude did not return valid JSON: ${auditParsed.error}`);
+    const auditData = auditParsed.data;
 
     let aiVisibilityScore = Math.min(100, Math.max(0, auditData.aiVisibilityScore));
     if (!bingIndexed) {
@@ -459,13 +465,12 @@ ${content.slice(0, 6000)}
     });
 
     const responseText = message.content[0].type === "text" ? message.content[0].text : "";
-    const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Claude did not return valid JSON");
-
-    const optimizeData = JSON.parse(jsonMatch[0]) as {
+    const optimizeParsed = parseLLMJson<{
       optimizedContent: string;
       changes: Array<{ type: string; reason: string; original: string; optimized: string }>;
-    };
+    }>(responseText);
+    if (!optimizeParsed.ok) throw new Error(`Claude did not return valid JSON: ${optimizeParsed.error}`);
+    const optimizeData = optimizeParsed.data;
 
     req.log.info({ changesCount: optimizeData.changes?.length }, "Optimization complete");
     res.json({ originalContent: content, optimizedContent: optimizeData.optimizedContent, changes: optimizeData.changes || [] });
@@ -696,9 +701,9 @@ Return JSON with this exact structure:
       messages: [{ role: "user", content: prompt }],
     });
     const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON returned");
-    res.json(JSON.parse(match[0]));
+    const gbpParsed = parseLLMJson(text);
+    if (!gbpParsed.ok) throw new Error(gbpParsed.error);
+    res.json(gbpParsed.data);
   } catch (err) {
     logger.error({ err }, "Fix GBP generation failed");
     res.status(500).json({ error: "GBP content generation failed" });
@@ -735,9 +740,9 @@ Return JSON with this exact structure:
       messages: [{ role: "user", content: prompt }],
     });
     const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON returned");
-    res.json(JSON.parse(match[0]));
+    const socialParsed = parseLLMJson(text);
+    if (!socialParsed.ok) throw new Error(socialParsed.error);
+    res.json(socialParsed.data);
   } catch (err) {
     logger.error({ err }, "Fix social generation failed");
     res.status(500).json({ error: "Social bio generation failed" });
@@ -799,9 +804,9 @@ Return JSON with this exact structure:
       messages: [{ role: "user", content: prompt }],
     });
     const text = message.content[0].type === "text" ? message.content[0].text : "";
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON returned");
-    res.json(JSON.parse(match[0]));
+    const briefParsed = parseLLMJson(text);
+    if (!briefParsed.ok) throw new Error(briefParsed.error);
+    res.json(briefParsed.data);
   } catch (err) {
     logger.error({ err }, "Fix brief generation failed");
     res.status(500).json({ error: "Brief generation failed" });
