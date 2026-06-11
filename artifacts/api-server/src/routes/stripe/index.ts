@@ -1,5 +1,8 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import Stripe from "stripe";
+import { getAuth } from "@clerk/express";
+import { db, subscriptionsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
 const router: IRouter = Router();
@@ -23,6 +26,7 @@ router.post("/create-checkout-session", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
+    const clerkUserId = getAuth(req)?.userId ?? null;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -41,6 +45,10 @@ router.post("/create-checkout-session", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
+      metadata: {
+        ...(clerkUserId ? { clerkUserId } : {}),
+        plan: "grow",
+      },
       success_url: `${base}/success`,
       cancel_url: `${base}/cancel`,
       allow_promotion_codes: true,
@@ -66,6 +74,7 @@ router.post("/create-monitor-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
+    const clerkUserId = getAuth(req)?.userId ?? null;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -83,6 +92,10 @@ router.post("/create-monitor-checkout", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
+      metadata: {
+        ...(clerkUserId ? { clerkUserId } : {}),
+        plan: "monitor",
+      },
       success_url: `${base}/monitor-setup?checkout=success`,
       cancel_url: `${base}/pricing`,
       allow_promotion_codes: true,
@@ -108,6 +121,7 @@ router.post("/create-grow-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
+    const clerkUserId = getAuth(req)?.userId ?? null;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -125,6 +139,10 @@ router.post("/create-grow-checkout", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
+      metadata: {
+        ...(clerkUserId ? { clerkUserId } : {}),
+        plan: "grow",
+      },
       success_url: `${base}/monitor-setup?checkout=success`,
       cancel_url: `${base}/pricing`,
       allow_promotion_codes: true,
@@ -150,6 +168,7 @@ router.post("/create-fix-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
+    const clerkUserId = getAuth(req)?.userId ?? null;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -166,6 +185,10 @@ router.post("/create-fix-checkout", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
+      metadata: {
+        ...(clerkUserId ? { clerkUserId } : {}),
+        plan: "fix",
+      },
       success_url: `${base}/fix-success`,
       cancel_url: `${base}/fix`,
     });
@@ -183,6 +206,39 @@ router.post("/create-fix-checkout", async (req, res): Promise<void> => {
       error: "Could not create checkout session",
       details: err instanceof Error ? err.message : "Unknown error",
     });
+  }
+});
+
+router.get("/subscription", async (req: Request, res: Response): Promise<void> => {
+  const auth = getAuth(req);
+  const clerkUserId = auth?.userId;
+
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const rows = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.clerkUserId, clerkUserId))
+      .limit(1);
+
+    if (rows.length === 0) {
+      res.json({ plan: "free", status: "active", currentPeriodEnd: null });
+      return;
+    }
+
+    const sub = rows[0];
+    res.json({
+      plan: sub.plan,
+      status: sub.status,
+      currentPeriodEnd: sub.currentPeriodEnd,
+    });
+  } catch (err) {
+    logger.error({ err }, "Failed to fetch subscription");
+    res.status(500).json({ error: "Could not fetch subscription" });
   }
 });
 
