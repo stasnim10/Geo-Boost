@@ -98,11 +98,22 @@ export default function Optimizer() {
     }
   };
 
+  const [upgradeRequired, setUpgradeRequired] = useState(false);
+
   const optimize = () => {
     if (!content.trim() || !queries.trim()) return;
+    setUpgradeRequired(false);
     optimizeMutation.mutate(
       { data: { content, queries: queries.split(",").map((q) => q.trim()).filter(Boolean), category: auditCtx?.category } },
-      { onSuccess: (data) => setResult(data) }
+      {
+        onSuccess: (data) => setResult(data),
+        onError: (err) => {
+          const status = (err as { status?: number })?.status;
+          if (status === 403) {
+            setUpgradeRequired(true);
+          }
+        },
+      }
     );
   };
 
@@ -256,7 +267,20 @@ export default function Optimizer() {
             </button>
           )}
 
-          {optimizeMutation.isError && (
+          {upgradeRequired && (
+            <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex-1">
+                <p className="font-bold text-amber-900 text-sm mb-1">A paid plan is required to use the Content Rewriter</p>
+                <p className="text-amber-700 text-xs">The Fix, Monitor, or Grow plan unlocks AI-powered content optimization. Upgrade to rewrite your content and get cited more often.</p>
+              </div>
+              <Link href="/pricing?plan=fix">
+                <button style={{ backgroundColor: "#22c55e" }} className="flex-shrink-0 px-5 py-2.5 text-white font-bold text-sm rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap">
+                  View Plans →
+                </button>
+              </Link>
+            </div>
+          )}
+          {optimizeMutation.isError && !upgradeRequired && (
             <p className="text-red-600 text-sm mt-3 text-center">
               {(optimizeMutation.error as Error)?.message ?? "Optimization failed. Please try again."}
             </p>

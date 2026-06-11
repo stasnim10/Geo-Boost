@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { useUser } from "@clerk/react";
-import { Loader2, CheckCircle2, Search, Globe, Mail, Plus, X } from "lucide-react";
+import { Loader2, CheckCircle2, Search, Globe, Mail, Plus, X, Lock } from "lucide-react";
 
 export default function MonitorSetup() {
   const { user, isLoaded } = useUser();
@@ -14,6 +14,7 @@ export default function MonitorSetup() {
   const [errorMsg, setErrorMsg] = useState("");
   const [existing, setExisting] = useState<{ domain: string; queries: string[]; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [plan, setPlan] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -42,20 +43,25 @@ export default function MonitorSetup() {
       } catch {}
     }
 
-    fetch("/api/monitor/setup", { credentials: "include" })
-      .then(r => r.ok ? r.json() as Promise<{ domain: string; queries: string[]; email: string }> : null)
-      .then(data => {
-        if (data) {
-          setExisting(data);
-          setDomain(data.domain);
-          setEmail(data.email);
-          const q = [...data.queries];
-          while (q.length < 5) q.push("");
-          setQueries(q.slice(0, 5));
-        }
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+    Promise.all([
+      fetch("/api/stripe/subscription", { credentials: "include" })
+        .then(r => r.ok ? r.json() as Promise<{ plan: string }> : { plan: "free" })
+        .catch(() => ({ plan: "free" })),
+      fetch("/api/monitor/setup", { credentials: "include" })
+        .then(r => r.ok ? r.json() as Promise<{ domain: string; queries: string[]; email: string }> : null)
+        .catch(() => null),
+    ]).then(([subData, setupData]) => {
+      setPlan(subData.plan);
+      if (setupData) {
+        setExisting(setupData);
+        setDomain(setupData.domain);
+        setEmail(setupData.email);
+        const q = [...setupData.queries];
+        while (q.length < 5) q.push("");
+        setQueries(q.slice(0, 5));
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
   }, [isLoaded, user, navigate]);
 
   const updateQuery = (i: number, val: string) => {
@@ -91,6 +97,29 @@ export default function MonitorSetup() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+      </div>
+    );
+  }
+
+  if (plan === "free") {
+    return (
+      <div className="max-w-xl mx-auto py-20 px-4 text-center">
+        <div className="w-20 h-20 bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center mx-auto mb-6">
+          <Lock className="w-9 h-9 text-amber-500" />
+        </div>
+        <h1 className="text-2xl font-extrabold text-slate-900 mb-3">Monitor is a paid feature</h1>
+        <p className="text-slate-500 mb-2 leading-relaxed">
+          Weekly AI visibility re-audits, 5 tracked queries, and a Monday morning email report are available on the <strong>Monitor plan</strong> ($29/month) or the <strong>Grow plan</strong> ($99/month).
+        </p>
+        <p className="text-sm text-slate-400 mb-8">You're currently on the free plan.</p>
+        <Link href="/pricing?plan=monitor">
+          <button
+            style={{ backgroundColor: "#22c55e" }}
+            className="px-8 py-3 text-white font-bold rounded-xl hover:opacity-90 transition-opacity"
+          >
+            View Pricing &amp; Upgrade
+          </button>
+        </Link>
       </div>
     );
   }

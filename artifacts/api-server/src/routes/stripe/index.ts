@@ -235,10 +235,53 @@ router.get("/subscription", async (req: Request, res: Response): Promise<void> =
       plan: sub.plan,
       status: sub.status,
       currentPeriodEnd: sub.currentPeriodEnd,
+      stripeCustomerId: sub.stripeCustomerId,
     });
   } catch (err) {
     logger.error({ err }, "Failed to fetch subscription");
     res.status(500).json({ error: "Could not fetch subscription" });
+  }
+});
+
+router.post("/portal", async (req: Request, res: Response): Promise<void> => {
+  const auth = getAuth(req);
+  const clerkUserId = auth?.userId;
+
+  if (!clerkUserId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const rows = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.clerkUserId, clerkUserId))
+      .limit(1);
+
+    const stripeCustomerId = rows[0]?.stripeCustomerId;
+
+    if (!stripeCustomerId) {
+      res.status(404).json({ error: "No billing account found. Please purchase a plan first." });
+      return;
+    }
+
+    const stripe = getStripe();
+    const base = getBaseUrl();
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: stripeCustomerId,
+      return_url: `${base}/dashboard`,
+    });
+
+    logger.info({ clerkUserId }, "Stripe billing portal session created");
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err }, "Failed to create billing portal session");
+    res.status(500).json({
+      error: "Could not open billing portal",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
   }
 });
 

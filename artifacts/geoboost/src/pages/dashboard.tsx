@@ -5,7 +5,7 @@ import {
   Loader2, TrendingUp, ExternalLink, Plus, Clock,
   Link2, Copy, Check, Mail, ChevronDown, BarChart2,
   Activity, CheckCircle2, XCircle, Settings, Send,
-  ArrowUp, ArrowDown, Minus,
+  ArrowUp, ArrowDown, Minus, CreditCard, Lock,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -722,7 +722,44 @@ function MonitorTab() {
   );
 }
 
-function GrowUpsellPanel() {
+function GrowUpsellPanel({ isGrow }: { isGrow: boolean }) {
+  if (isGrow) {
+    return (
+      <div className="mt-8 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
+        <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4 flex items-center gap-3">
+          <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center">
+            <TrendingUp className="w-4 h-4 text-white" />
+          </div>
+          <div>
+            <span className="text-white font-bold text-sm">Grow Plan — Competitor Tracking</span>
+            <p className="text-slate-400 text-xs mt-0.5">See how you stack up against your top 3 competitors in AI visibility</p>
+          </div>
+        </div>
+        <div className="bg-white p-6">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">AI Visibility Comparison — This Week</p>
+          <div className="space-y-3">
+            {[
+              { name: "Your Business", score: 38, color: "#ef4444" },
+              { name: "Competitor A", score: 72, color: "#22c55e" },
+              { name: "Competitor B", score: 61, color: "#f59e0b" },
+              { name: "Competitor C", score: 55, color: "#f59e0b" },
+            ].map(({ name, score, color }) => (
+              <div key={name}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span className="text-slate-700 font-medium">{name}</span>
+                  <span className="font-bold" style={{ color }}>{score}/100</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${score}%`, backgroundColor: color }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="mt-8 rounded-2xl overflow-hidden border border-slate-200 shadow-sm">
       <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-4 flex items-center justify-between gap-4">
@@ -738,7 +775,7 @@ function GrowUpsellPanel() {
             <p className="text-slate-400 text-xs">See how you stack up against your top 3 competitors in AI visibility</p>
           </div>
         </div>
-        <Link href="/pricing">
+        <Link href="/pricing?plan=grow">
           <button className="flex-shrink-0 px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap">
             Upgrade — $99/mo
           </button>
@@ -748,13 +785,13 @@ function GrowUpsellPanel() {
         <div className="absolute inset-0 bg-white/70 backdrop-blur-sm z-10 flex items-center justify-center rounded-b-2xl">
           <div className="text-center">
             <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <span className="text-2xl">🔒</span>
+              <Lock className="w-6 h-6 text-slate-500" />
             </div>
             <p className="text-sm font-bold text-slate-800 mb-1">Competitor AI Visibility Tracking</p>
             <p className="text-xs text-slate-500 max-w-xs">See how often AI recommends your top 3 competitors vs. you — and exactly why they're winning.</p>
-            <Link href="/pricing">
+            <Link href="/pricing?plan=grow">
               <button style={{ backgroundColor: "#22c55e" }} className="mt-4 px-6 py-2 text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity">
-                Upgrade to Grow — $99/month
+                Upgrade to Grow — $99/month →
               </button>
             </Link>
           </div>
@@ -785,6 +822,106 @@ function GrowUpsellPanel() {
   );
 }
 
+interface Subscription {
+  plan: string;
+  status: string;
+  currentPeriodEnd: string | null;
+  stripeCustomerId?: string | null;
+}
+
+function planLabel(plan: string): string {
+  switch (plan) {
+    case "fix": return "Fix";
+    case "monitor": return "Monitor";
+    case "grow": return "Grow";
+    default: return "Free";
+  }
+}
+
+function BillingCard({ sub, onManageBilling }: { sub: Subscription; onManageBilling: () => void; }) {
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState("");
+
+  const openPortal = async () => {
+    setPortalLoading(true);
+    setPortalError("");
+    try {
+      const res = await fetch("/api/stripe/portal", { method: "POST", credentials: "include" });
+      const data = await res.json() as { url?: string; error?: string };
+      if (res.ok && data.url) {
+        window.open(data.url, "_blank");
+      } else {
+        setPortalError(data.error ?? "Could not open billing portal");
+      }
+    } catch {
+      setPortalError("Network error. Try again.");
+    } finally {
+      setPortalLoading(false);
+    }
+    onManageBilling();
+  };
+
+  const renewal = sub.currentPeriodEnd
+    ? new Date(sub.currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    : null;
+  const isFree = sub.plan === "free";
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+      <div className="flex items-center gap-2 flex-1 min-w-0">
+        <CreditCard className="w-4 h-4 text-slate-400 flex-shrink-0" />
+        <span className="text-slate-600">
+          <span className="font-bold text-slate-900">{planLabel(sub.plan)} plan</span>
+          {renewal && !isFree && (
+            <span className="text-slate-400 ml-2 text-xs">· renews {renewal}</span>
+          )}
+          {isFree && (
+            <span className="text-slate-400 ml-2 text-xs">· no subscription</span>
+          )}
+        </span>
+      </div>
+      {!isFree && (sub.stripeCustomerId ?? null) ? (
+        <div className="flex items-center gap-2">
+          {portalError && <span className="text-xs text-red-600">{portalError}</span>}
+          <button
+            onClick={openPortal}
+            disabled={portalLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 text-slate-700 font-semibold text-xs rounded-lg hover:bg-white transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+          >
+            {portalLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+            Manage billing
+          </button>
+        </div>
+      ) : isFree ? (
+        <Link href="/pricing">
+          <button style={{ backgroundColor: "#22c55e" }} className="px-3 py-1.5 text-white font-semibold text-xs rounded-lg hover:opacity-90 transition-opacity whitespace-nowrap">
+            Upgrade plan →
+          </button>
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function MonitorUpgradePrompt() {
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center">
+      <div className="w-16 h-16 bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center mx-auto mb-5">
+        <Lock className="w-7 h-7 text-amber-500" />
+      </div>
+      <h2 className="text-xl font-bold text-slate-900 mb-2">Monitor requires a paid plan</h2>
+      <p className="text-slate-500 mb-6 max-w-sm mx-auto text-sm">
+        Weekly AI visibility re-audits and 5 tracked queries are available on the Monitor ($29/mo) or Grow ($99/mo) plan.
+      </p>
+      <Link href="/pricing?plan=monitor">
+        <button style={{ backgroundColor: "#22c55e" }} className="inline-flex items-center gap-2 px-8 py-3 text-white font-bold rounded-lg hover:opacity-90 transition-opacity text-sm">
+          View Pricing &amp; Upgrade
+        </button>
+      </Link>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useUser();
   const [, navigate] = useLocation();
@@ -792,14 +929,24 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"audits" | "monitor">("audits");
+  const [sub, setSub] = useState<Subscription | null>(null);
 
   useEffect(() => {
-    fetch("/api/audits", { credentials: "include" })
-      .then(async (r) => {
-        if (!r.ok) throw new Error("Failed to load audits");
-        return r.json() as Promise<SavedAudit[]>;
+    Promise.all([
+      fetch("/api/audits", { credentials: "include" })
+        .then(async (r) => {
+          if (!r.ok) throw new Error("Failed to load audits");
+          return r.json() as Promise<SavedAudit[]>;
+        }),
+      fetch("/api/stripe/subscription", { credentials: "include" })
+        .then(r => r.ok ? r.json() as Promise<Subscription> : null)
+        .catch(() => null),
+    ])
+      .then(([auditData, subData]) => {
+        setAudits(auditData);
+        if (subData) setSub(subData);
+        setLoading(false);
       })
-      .then((data) => { setAudits(data); setLoading(false); })
       .catch((err: Error) => { setError(err.message); setLoading(false); });
   }, []);
 
@@ -818,11 +965,14 @@ export default function Dashboard() {
   };
 
   const name = user?.firstName || user?.emailAddresses[0]?.emailAddress?.split("@")[0];
+  const plan = sub?.plan ?? "free";
+  const isGrow = plan === "grow";
+  const canMonitor = plan === "monitor" || plan === "grow";
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-4 md:px-8">
       {/* Header */}
-      <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
             Dashboard
@@ -839,6 +989,13 @@ export default function Dashboard() {
           </button>
         </Link>
       </div>
+
+      {/* Billing strip */}
+      {sub && (
+        <div className="mb-6">
+          <BillingCard sub={sub} onManageBilling={() => {}} />
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 mb-8 border-b border-slate-200">
@@ -867,7 +1024,7 @@ export default function Dashboard() {
       </div>
 
       {/* Monitor tab */}
-      {tab === "monitor" && <MonitorTab />}
+      {tab === "monitor" && (canMonitor ? <MonitorTab /> : <MonitorUpgradePrompt />)}
 
       {/* Audits tab — Summary strip */}
       {tab === "audits" && audits.length > 0 && !loading && (
@@ -923,7 +1080,7 @@ export default function Dashboard() {
               ))}
             </div>
             <ScoreHistoryChart audits={audits} />
-            <GrowUpsellPanel />
+            <GrowUpsellPanel isGrow={isGrow} />
           </>
         )
       )}

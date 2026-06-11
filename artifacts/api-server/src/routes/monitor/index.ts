@@ -7,11 +7,14 @@ import { eq, desc, and } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../audits/index";
 import { parseLLMJson } from "../../lib/parse-llm-json";
+import { requirePlan } from "../../lib/plan-check";
 
 const router: IRouter = Router();
 
+const requireMonitorPlan = requirePlan(["monitor", "grow"]);
+
 // ─── GET /monitor/setup ───────────────────────────────────────────────────────
-router.get("/monitor/setup", requireAuth, async (req, res): Promise<void> => {
+router.get("/monitor/setup", requireAuth, requireMonitorPlan, async (req, res): Promise<void> => {
   const auth = getAuth(req);
   const userId = auth?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -29,7 +32,7 @@ router.get("/monitor/setup", requireAuth, async (req, res): Promise<void> => {
 });
 
 // ─── POST /monitor/setup ──────────────────────────────────────────────────────
-router.post("/monitor/setup", requireAuth, async (req, res): Promise<void> => {
+router.post("/monitor/setup", requireAuth, requireMonitorPlan, async (req, res): Promise<void> => {
   const auth = getAuth(req);
   const userId = auth?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -62,7 +65,7 @@ router.post("/monitor/setup", requireAuth, async (req, res): Promise<void> => {
 });
 
 // ─── GET /monitor/query-results ───────────────────────────────────────────────
-router.get("/monitor/query-results", requireAuth, async (req, res): Promise<void> => {
+router.get("/monitor/query-results", requireAuth, requireMonitorPlan, async (req, res): Promise<void> => {
   const auth = getAuth(req);
   const userId = auth?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -340,7 +343,7 @@ async function runWeeklyReportForUser(
 }
 
 // ─── POST /send-test-report ───────────────────────────────────────────────────
-router.post("/send-test-report", requireAuth, async (req, res): Promise<void> => {
+router.post("/send-test-report", requireAuth, requireMonitorPlan, async (req, res): Promise<void> => {
   const auth = getAuth(req);
   const userId = auth?.userId;
   if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }

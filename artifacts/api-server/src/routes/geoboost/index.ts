@@ -7,6 +7,7 @@ import { db, auditsTable, sharedResultsTable, waitlistTable } from "@workspace/d
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { parseLLMJson } from "../../lib/parse-llm-json";
+import { requirePlan } from "../../lib/plan-check";
 
 const router: IRouter = Router();
 
@@ -422,7 +423,7 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
 });
 
 // ─── optimize ─────────────────────────────────────────────────────────────────
-router.post("/geoboost/optimize", async (req, res): Promise<void> => {
+router.post("/geoboost/optimize", requirePlan(["fix", "monitor", "grow"]), async (req, res): Promise<void> => {
   const parsed = OptimizeContentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
