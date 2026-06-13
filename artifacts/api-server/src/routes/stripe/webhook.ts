@@ -106,7 +106,8 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
               ? session.subscription
               : session.subscription.id;
             const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-            currentPeriodEnd = new Date(stripeSub.current_period_end * 1000);
+            const periodEnd = stripeSub.items.data[0]?.current_period_end;
+            currentPeriodEnd = periodEnd ? new Date(periodEnd * 1000) : null;
             stripePriceId = stripeSub.items.data[0]?.price?.id ?? null;
           }
 
@@ -142,13 +143,17 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
         if (!customerId) break;
 
-        const subscriptionId = typeof invoice.subscription === "string"
-          ? invoice.subscription
-          : invoice.subscription?.id ?? null;
+        const invoiceSub = invoice.parent?.type === "subscription_details"
+          ? invoice.parent.subscription_details?.subscription
+          : null;
+        const subscriptionId = typeof invoiceSub === "string"
+          ? invoiceSub
+          : invoiceSub?.id ?? null;
         if (!subscriptionId) break;
 
         const stripeSub = await stripe.subscriptions.retrieve(subscriptionId);
-        const currentPeriodEnd = new Date(stripeSub.current_period_end * 1000);
+        const periodEndTs = stripeSub.items.data[0]?.current_period_end;
+        const currentPeriodEnd = periodEndTs ? new Date(periodEndTs * 1000) : null;
 
         const updated = await db
           .update(subscriptionsTable)
@@ -166,7 +171,8 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         if (!customerId) break;
 
         const status = mapStripeStatus(stripeSub.status);
-        const currentPeriodEnd = new Date(stripeSub.current_period_end * 1000);
+        const subPeriodEnd = stripeSub.items.data[0]?.current_period_end;
+        const currentPeriodEnd = subPeriodEnd ? new Date(subPeriodEnd * 1000) : null;
 
         const updated = await db
           .update(subscriptionsTable)

@@ -29,7 +29,7 @@ router.get("/audits", requireAuth, async (req: Request, res: Response): Promise<
 
 router.post("/audits/:id/share", requireAuth, async (req: Request, res: Response): Promise<void> => {
   const userId = (req as Request & { userId: string }).userId;
-  const auditId = parseInt(req.params.id, 10);
+  const auditId = parseInt(String(req.params.id), 10);
 
   if (isNaN(auditId)) {
     res.status(400).json({ error: "Invalid audit ID" });
@@ -77,7 +77,8 @@ router.post("/audits/:id/share", requireAuth, async (req: Request, res: Response
 router.get("/audits/shared/:token", async (req: Request, res: Response): Promise<void> => {
   const { token } = req.params;
 
-  if (!token || !/^[0-9a-f-]{36}$/.test(token)) {
+  const tokenStr = String(token);
+  if (!tokenStr || !/^[0-9a-f-]{36}$/.test(tokenStr)) {
     res.status(400).json({ error: "Invalid token" });
     return;
   }
@@ -86,7 +87,7 @@ router.get("/audits/shared/:token", async (req: Request, res: Response): Promise
     const [row] = await db
       .select()
       .from(sharedResultsTable)
-      .where(eq(sharedResultsTable.token, token))
+      .where(eq(sharedResultsTable.token, tokenStr))
       .limit(1);
 
     if (!row) {
