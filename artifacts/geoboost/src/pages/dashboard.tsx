@@ -77,18 +77,9 @@ function AuditCard({
     if (shareStatus === "ready") { copyLink(); return; }
     setShareStatus("loading");
     try {
-      const res = await fetch("/api/geoboost/share", {
+      const res = await fetch(`/api/audits/${audit.id}/share`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: audit.url,
-          category: audit.category,
-          aiVisibilityScore: audit.aiVisibilityScore,
-          semanticDensityScore: audit.semanticDensityScore,
-          structuralFormattingScore: audit.structuralFormattingScore,
-          weaknesses: audit.weaknesses,
-          competitorPatterns: audit.competitorPatterns,
-        }),
+        credentials: "include",
       });
       const data = await res.json() as { token?: string };
       if (res.ok && data.token) {

@@ -4,7 +4,7 @@ import { Resend } from "resend";
 import { RunAuditBody, OptimizeContentBody, DetectCategoryBody } from "@workspace/api-zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db, auditsTable, sharedResultsTable, waitlistTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, count } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { parseLLMJson } from "../../lib/parse-llm-json";
 import { requirePlan } from "../../lib/plan-check";
@@ -285,6 +285,128 @@ async function checkRobotsTxt(url: string): Promise<string[]> {
   }
 }
 
+// ─── welcome email ────────────────────────────────────────────────────────────
+async function sendWelcomeEmail(params: {
+  email: string;
+  name: string;
+  url: string;
+  category: string;
+  auditResponse: {
+    aiVisibilityScore: number;
+    weaknesses: string[];
+  };
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    logger.warn("RESEND_API_KEY not set — skipping welcome email");
+    return;
+  }
+
+  const { email, name, url, category, auditResponse } = params;
+  const { aiVisibilityScore, weaknesses } = auditResponse;
+
+  const scoreColor = aiVisibilityScore >= 70 ? "#22c55e" : aiVisibilityScore >= 40 ? "#f59e0b" : "#ef4444";
+  const scoreLabel = aiVisibilityScore >= 70 ? "Good" : aiVisibilityScore >= 40 ? "Needs Work" : "Critical";
+
+  const appUrl = process.env.REPLIT_DOMAINS
+    ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
+    : "https://geoboost.app";
+
+  const quickWins = weaknesses.slice(0, 3);
+  const firstName = name.split(" ")[0] || name;
+
+  const html = `<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to GEOboost</title></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,system-ui,-apple-system,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
+<tr><td align="center">
+<table width="100%" style="max-width:600px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+
+<!-- Header -->
+<tr><td style="background:#0f172a;padding:28px 32px;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td><span style="color:#22c55e;font-size:22px;font-weight:800;letter-spacing:-0.5px;">📈 GEOboost</span>
+    <p style="color:#94a3b8;margin:8px 0 0;font-size:13px;">Welcome — your first AI visibility audit is in</p></td>
+  </tr></table>
+</td></tr>
+
+<!-- Greeting -->
+<tr><td style="padding:28px 32px 20px;">
+  <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">Welcome, ${firstName}! 👋</h1>
+  <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6;">
+    You just ran your first AI visibility audit for <strong style="color:#0f172a;">${url}</strong>. Here's what we found — and what to fix first.
+  </p>
+</td></tr>
+
+<!-- Score -->
+<tr><td style="padding:0 32px 24px;">
+  <div style="background:#f8fafc;border-radius:12px;padding:20px 24px;border:1px solid #e2e8f0;text-align:center;">
+    <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">Your AI Visibility Score</div>
+    <div style="font-size:56px;font-weight:800;color:${scoreColor};line-height:1;">${aiVisibilityScore}</div>
+    <div style="font-size:12px;font-weight:700;color:${scoreColor};margin-top:4px;">${scoreLabel}</div>
+    <div style="font-size:12px;color:#94a3b8;margin-top:6px;">out of 100 · Category: ${category}</div>
+  </div>
+</td></tr>
+
+<!-- Quick wins -->
+<tr><td style="padding:0 32px 24px;">
+  <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#0f172a;">⚡ Your 3 Quick Wins</h2>
+  <p style="margin:0 0 12px;color:#64748b;font-size:13px;">Fix these first — they'll have the biggest impact on your AI visibility:</p>
+  ${quickWins.map((w, i) => `
+  <div style="background:#fef2f2;border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #ef4444;">
+    <span style="color:#991b1b;font-size:12px;font-weight:700;margin-right:6px;">${i + 1}.</span>
+    <span style="color:#7f1d1d;font-size:13px;">${w}</span>
+  </div>`).join("")}
+</td></tr>
+
+<!-- CTA -->
+<tr><td style="padding:0 32px 32px;">
+  <div style="background:#0f172a;border-radius:12px;padding:24px;text-align:center;">
+    <p style="color:#ffffff;font-size:16px;font-weight:700;margin:0 0 6px;">Track your progress weekly</p>
+    <p style="color:#94a3b8;font-size:13px;margin:0 0 16px;">Upgrade to Monitor and get a weekly AI visibility report every Monday — so you always know if your fixes are working.</p>
+    <a href="${appUrl}/pricing?plan=monitor" style="display:inline-block;background:#22c55e;color:#ffffff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Monitor My Progress — $29/mo →</a>
+  </div>
+</td></tr>
+
+<!-- View report link -->
+<tr><td style="padding:0 32px 24px;text-align:center;">
+  <a href="${appUrl}/dashboard" style="color:#3b82f6;font-size:13px;text-decoration:none;">View your full audit report in the dashboard →</a>
+</td></tr>
+
+<!-- Footer -->
+<tr><td style="padding:16px 32px 24px;border-top:1px solid #f1f5f9;">
+  <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center;">GEOboost · Generative Engine Optimization · You're receiving this because you ran your first audit.</p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!from) {
+    logger.warn("RESEND_FROM_EMAIL not set — skipping welcome email to avoid sending from Resend default");
+    return;
+  }
+
+  const resend = new Resend(apiKey);
+
+  const { error } = await resend.emails.send({
+    from,
+    to: [email],
+    subject: `Your GEO audit score: ${aiVisibilityScore}/100 — here are your 3 quick wins`,
+    html,
+  });
+
+  if (error) {
+    throw new Error((error as { message?: string }).message || "Resend error");
+  }
+
+  logger.info({ email, score: aiVisibilityScore }, "Welcome email sent");
+}
+
 // ─── audit ────────────────────────────────────────────────────────────────────
 router.post("/geoboost/audit", async (req, res): Promise<void> => {
   const parsed = RunAuditBody.safeParse(req.body);
@@ -397,6 +519,11 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
     const auth = getAuth(req);
     if (auth?.userId) {
       try {
+        const [{ existingCount }] = await db
+          .select({ existingCount: count() })
+          .from(auditsTable)
+          .where(eq(auditsTable.clerkUserId, auth.userId));
+
         await db.insert(auditsTable).values({
           clerkUserId: auth.userId,
           url,
@@ -410,6 +537,12 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
           competitorPatterns: auditResponse.competitorPatterns,
         });
         req.log.info({ userId: auth.userId }, "Audit saved to DB");
+
+        if (existingCount === 0) {
+          sendWelcomeEmail({ email, name, auditResponse, url, category }).catch(err =>
+            logger.warn({ err }, "Welcome email failed")
+          );
+        }
       } catch (err) {
         logger.warn({ err }, "Failed to save audit to DB");
       }
