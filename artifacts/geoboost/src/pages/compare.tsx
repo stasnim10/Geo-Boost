@@ -35,20 +35,20 @@ export default function Compare() {
     <div className="max-w-3xl mx-auto px-4 py-14">
       <div className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-50 text-green-700 text-xs font-semibold tracking-wide mb-4 border border-green-100">
-          GEOboost vs Enterprise Tools
+          Show me on AI vs Enterprise Tools
         </div>
         <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-3">
           Built for small businesses,<br />not marketing departments.
         </h1>
         <p className="text-slate-500 text-base max-w-xl mx-auto">
-          Enterprise SEO tools are powerful — but they're built for agencies and marketing teams. GEOboost is the only AI visibility tool designed for business owners who just want more customers.
+          Enterprise SEO tools are powerful — but they're built for agencies and marketing teams. Show me on AI is the only AI visibility tool designed for business owners who just want more customers.
         </p>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden mb-8">
         <div className="grid grid-cols-3 bg-slate-900 text-white text-sm font-bold px-6 py-4">
           <div className="text-slate-400">Feature</div>
-          <div className="text-center text-green-400">GEOboost</div>
+          <div className="text-center text-green-400">Show me on AI</div>
           <div className="text-center text-slate-400">Surfer &amp; Others</div>
         </div>
         {rows.map((row, i) => (

@@ -299,7 +299,7 @@ function BriefSection({ ctx, unlocked }: { ctx: FixContext; unlocked: boolean })
   const download = () => {
     if (!data) return;
     const lines: string[] = [
-      "GEOboost Content Fix Brief", "=".repeat(40), "",
+      "Show me on AI Content Fix Brief", "=".repeat(40), "",
       "EXECUTIVE SUMMARY", "-".repeat(20), data.executiveSummary, "",
       "PRIORITY ORDER", "-".repeat(20), ...data.priorityOrder.map((p, i) => `${i + 1}. ${p}`), "",
       "WEAKNESS FIXES", "-".repeat(20),
@@ -319,7 +319,7 @@ function BriefSection({ ctx, unlocked }: { ctx: FixContext; unlocked: boolean })
   const sendEmail = async () => {
     if (!emailAddr.trim() || !data) return;
     setEmailStatus("sending");
-    const body = `Your GEOboost Content Fix Brief for ${ctx.url}\n\n` +
+    const body = `Your Show me on AI Content Fix Brief for ${ctx.url}\n\n` +
       `Current Score: ${ctx.aiVisibilityScore}/100\n\n` +
       `EXECUTIVE SUMMARY\n${data.executiveSummary}\n\n` +
       `PRIORITY ORDER\n${data.priorityOrder.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\n` +
@@ -567,7 +567,7 @@ export default function FixPage() {
                     { step: 3, text: "Download your sitemap. A sitemap lists every page on your site so search engines can find them. WordPress users: install Yoast SEO and your sitemap is at yoursite.com/sitemap.xml." },
                     { step: 4, text: "Submit your sitemap in Bing Webmaster Tools under 'Sitemaps'." },
                     { step: 5, text: "Wait 48–72 hours for Bing to crawl your site." },
-                    { step: 6, text: "Run a new GEOboost audit — your score will update automatically." },
+                    { step: 6, text: "Run a new audit — your score will update automatically." },
                   ].map(({ step, text }) => (
                     <div key={step} className="flex gap-3 items-start">
                       <div className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{step}</div>

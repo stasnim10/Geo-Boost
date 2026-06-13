@@ -187,8 +187,8 @@ function ClerkProviderWithRoutes() {
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
       localization={{
-        signIn: { start: { title: "Welcome back to GEOboost", subtitle: "Sign in to view your audit history" } },
-        signUp: { start: { title: "Create your GEOboost account", subtitle: "Free to start — save and track your audits" } },
+        signIn: { start: { title: "Welcome back to Show me on AI", subtitle: "Sign in to view your audit history" } },
+        signUp: { start: { title: "Create your Show me on AI account", subtitle: "Free to start — save and track your audits" } },
       }}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}

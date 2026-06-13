@@ -52,7 +52,7 @@ export default function Success() {
       </div>
 
       <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4">
-        You're in. Welcome to GEOboost.
+        You're in. Welcome to Show me on AI.
       </h1>
 
       {loading ? (

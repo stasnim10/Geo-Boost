@@ -48,7 +48,7 @@ export default function Upgrade() {
           Done For You
         </div>
         <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 tracking-tight mb-4 leading-tight">
-          GEOboost Done For You
+          Show me on AI Done For You
         </h1>
         <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
           We publish your optimized content directly to your website, Google Business Profile, and social media —

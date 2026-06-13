@@ -443,7 +443,7 @@ function BingBlockerBanner({ url }: { url: string }) {
               { step: 3, text: "Download your sitemap — a sitemap is a file that lists every page on your website so search engines can find them all. If you use WordPress, the Yoast SEO plugin creates one automatically at yoursite.com/sitemap.xml." },
               { step: 4, text: "Submit your sitemap in Bing Webmaster Tools under 'Sitemaps'." },
               { step: 5, text: "Wait 48–72 hours for Bing to crawl your site and add it to their index." },
-              { step: 6, text: "Come back and run a new GEOboost audit — your score will update automatically." },
+              { step: 6, text: "Come back and run a new audit — your score will update automatically." },
             ].map(({ step, text }) => (
               <div key={step} className="flex gap-3 items-start">
                 <div className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{step}</div>
@@ -637,7 +637,7 @@ export default function Results() {
             going directly to competitors who rank higher in AI answers.
           </p>
           <p className="text-red-800 text-sm leading-relaxed mb-6 bg-red-100 rounded-lg px-4 py-3 border border-red-200">
-            💡 <strong>Here's the opportunity:</strong> For searches in the <strong>{category}</strong> category, AI typically recommends <strong>5 different businesses</strong> per answer — not just one winner. Right now you're not one of them. GEOboost helps you claim one of those citation spots before your competitors do.
+            💡 <strong>Here's the opportunity:</strong> For searches in the <strong>{category}</strong> category, AI typically recommends <strong>5 different businesses</strong> per answer — not just one winner. Right now you're not one of them. Show me on AI helps you claim one of those citation spots before your competitors do.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -659,7 +659,7 @@ export default function Results() {
 
           <div className="bg-white rounded-xl border border-red-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-slate-700 text-sm">
-              <strong>GEOboost costs $149/month.</strong> If it recovers even one lost customer per month,
+              <strong>Show me on AI costs $149/month.</strong> If it recovers even one lost customer per month,
               it pays for itself. At average performance, customers see 3–6x ROI within 60 days.
             </p>
             <CtaButton label="Fix This Now — $149/mo" className="flex-shrink-0 px-6 py-3 text-sm whitespace-nowrap" />
@@ -740,7 +740,7 @@ export default function Results() {
       <div className="mt-8 bg-[#0f172a] rounded-2xl p-8 text-center text-white">
         <h2 className="text-2xl font-extrabold mb-2">Stop losing {formatMoney(roi.amount)}/month to competitors</h2>
         <p className="text-slate-400 mb-6 max-w-xl mx-auto">
-          GEOboost rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking.
+          Show me on AI rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking.
         </p>
         <CtaButton label="Optimize My Content — $149/month" className="px-10 py-4 text-lg mx-auto" />
         <div className="mt-4">

@@ -77,7 +77,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <path d="M2 12h4l3-9 5 18 3-9h5" />
             </svg>
           </div>
-          GEOboost
+          Show me on AI
         </Link>
 
         <nav className="flex items-center gap-4">

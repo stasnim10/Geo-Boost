@@ -164,9 +164,9 @@ export default function SharedResultsPage() {
 
       {/* CTA */}
       <div className="bg-[#0f172a] rounded-2xl p-8 text-center text-white">
-        <h2 className="text-xl font-extrabold mb-2">Fix your AI visibility with GEOboost</h2>
+        <h2 className="text-xl font-extrabold mb-2">Fix your AI visibility with Show me on AI</h2>
         <p className="text-slate-400 mb-6 text-sm max-w-lg mx-auto">
-          GEOboost rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to customer queries.
+          Show me on AI rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to customer queries.
         </p>
         <Link href="/">
           <button className="px-8 py-3.5 bg-green-500 hover:bg-green-600 text-white font-bold rounded-lg transition-colors text-sm">
