@@ -69,7 +69,7 @@ async function scrapeUrlFull(url: string): Promise<ScrapeResult> {
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; GEOboost/1.0; +https://geoboost.app)" },
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; GEOboost/1.0; +https://showmeonai.com)" },
       signal: AbortSignal.timeout(15000),
     });
   } catch (err) {
@@ -310,7 +310,7 @@ async function sendWelcomeEmail(params: {
 
   const appUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : "https://geoboost.app";
+    : "https://showmeonai.com";
 
   const quickWins = weaknesses.slice(0, 3);
   const firstName = name.split(" ")[0] || name;
@@ -650,7 +650,7 @@ router.post("/geoboost/send-results", async (req, res): Promise<void> => {
 
   const appUrl = process.env.REPLIT_DOMAINS
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
-    : "https://geoboost.app";
+    : "https://showmeonai.com";
 
   const html = `<!DOCTYPE html>
 <html>
