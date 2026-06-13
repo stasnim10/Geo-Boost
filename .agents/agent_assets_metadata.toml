@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "H8oBqZSA5-I4sSELwbGdy"
+uri = "file://.local/outputs/show-me-on-ai.pptx"
+type = "slides"
+title = "show-me-on-ai.pptx"
