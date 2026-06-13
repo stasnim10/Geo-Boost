@@ -80,6 +80,11 @@ async function scrapeUrlFull(url: string): Promise<ScrapeResult> {
     logger.warn({ url, status: response.status }, "scrapeUrlFull: non-2xx response, returning partial result");
     return { text: "", listCount: 0, hasShortAnswerSections: false, partial: true };
   }
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!contentType.includes("text/html") && !contentType.includes("text/plain") && !contentType.includes("application/xhtml")) {
+    logger.warn({ url, contentType }, "scrapeUrlFull: non-HTML content-type, returning partial result");
+    return { text: "", listCount: 0, hasShortAnswerSections: false, partial: true };
+  }
   const html = await response.text();
 
   const listMatches = html.match(/<(ul|ol|li)[^>]*>/gi);

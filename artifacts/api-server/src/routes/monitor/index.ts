@@ -399,14 +399,10 @@ async function runWeeklyJobIfDue(): Promise<void> {
 }
 
 // ─── Startup catch-up ─────────────────────────────────────────────────────────
-// Runs once on server start: if it's Monday after 8am and any Monitor users
-// haven't received their report yet this week, send it now.
+// Runs once on server start: for any active Monitor user who hasn't received a
+// successful report for the current week yet, send it now — regardless of the
+// day or time (catches missed reports after outages, restarts, etc.).
 export async function runStartupCatchup(): Promise<void> {
-  const now = new Date();
-  const isMonday = now.getDay() === 1;
-  const isAfter8am = now.getHours() >= 8;
-  if (!isMonday || !isAfter8am) return;
-
   const weekKey = getThisMondayKey();
   try {
     const setups = await db.select().from(trackedQueriesTable)
