@@ -1,0 +1,1 @@
+- [Clerk health check ordering](clerk-health-check.md) — mount /api/healthz before clerkMiddleware or Autoscale startup probe returns 500 and deployment fails.

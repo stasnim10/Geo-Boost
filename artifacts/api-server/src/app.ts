@@ -9,6 +9,7 @@ import {
   getClerkProxyHost,
 } from "./middlewares/clerkProxyMiddleware";
 import router from "./routes";
+import healthRouter from "./routes/health";
 import { stripeWebhookHandler } from "./routes/stripe/webhook";
 import { logger } from "./lib/logger";
 
@@ -27,6 +28,9 @@ app.use(
     },
   }),
 );
+
+// Health check must be before Clerk middleware — no auth required
+app.use("/api", healthRouter);
 
 // Clerk proxy must be before body parsers — streams raw bytes
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
