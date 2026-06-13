@@ -1,0 +1,31 @@
+kind = "slides"
+previewPath = "/showmeonai-deck/"
+title = "Show me on AI"
+version = "1.0.0"
+id = "artifacts/showmeonai-deck"
+router = "path"
+
+[[integratedSkills]]
+name = "slides"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/showmeonai-deck/" ]
+localPort = 3003
+
+[services.development]
+run = "pnpm --filter @workspace/showmeonai-deck run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/showmeonai-deck", "run", "build" ]
+publicDir = "artifacts/showmeonai-deck/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "3003"
+BASE_PATH = "/showmeonai-deck/"

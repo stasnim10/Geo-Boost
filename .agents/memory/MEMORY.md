@@ -1,1 +1,2 @@
 - [Clerk health check ordering](clerk-health-check.md) — mount /api/healthz before clerkMiddleware or Autoscale startup probe returns 500 and deployment fails.
+- [Slides artifact port registration](slides-artifact-port.md) — slides artifacts must use a port in the supported list AND registered in .replit [[ports]]; unsupported or unregistered ports cause DIDNT_OPEN_A_PORT even when Vite starts successfully.
