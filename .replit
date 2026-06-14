@@ -38,7 +38,7 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-VITE_CLERK_PUBLISHABLE_KEY = "pk_test_bmVhcmJ5LXJvYmluLTIuY2xlcmsuYWNjb3VudHMuZGV2JA"
+VITE_CLERK_PUBLISHABLE_KEY = "pk_live_Y2xlcmsuc2hvd21lb25haS5jb20k"
 
 [nix]
 channel = "stable-25_05"
