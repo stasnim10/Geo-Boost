@@ -45,6 +45,11 @@ vi.mock("../../lib/logger", () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+const mockInvalidatePlanCache = vi.hoisted(() => vi.fn());
+vi.mock("../../lib/plan-check", () => ({
+  invalidatePlanCache: mockInvalidatePlanCache,
+}));
+
 import { stripeWebhookHandler } from "./webhook.js";
 
 function makeReq(overrides: Partial<Request> = {}): Request {
@@ -163,8 +168,7 @@ describe("stripeWebhookHandler — checkout.session.completed (subscription mode
 
   beforeEach(() => {
     mockStripeInstance.subscriptions.retrieve.mockResolvedValue({
-      current_period_end: futureEpoch,
-      items: { data: [{ price: { id: "price_monitor" } }] },
+      items: { data: [{ current_period_end: futureEpoch, price: { id: "price_monitor" } }] },
     });
   });
 
@@ -257,8 +261,7 @@ describe("stripeWebhookHandler — invoice.paid", () => {
     const futureEpoch = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
 
     mockStripeInstance.subscriptions.retrieve.mockResolvedValue({
-      current_period_end: futureEpoch,
-      items: { data: [] },
+      items: { data: [{ current_period_end: futureEpoch }] },
     });
 
     mockStripeInstance.webhooks.constructEvent.mockReturnValue({
@@ -267,7 +270,10 @@ describe("stripeWebhookHandler — invoice.paid", () => {
       data: {
         object: {
           customer: "cus_abc",
-          subscription: "sub_123",
+          parent: {
+            type: "subscription_details",
+            subscription_details: { subscription: "sub_123" },
+          },
         },
       },
     });
@@ -313,6 +319,95 @@ describe("stripeWebhookHandler — invoice.paid", () => {
         object: {
           customer: "cus_abc",
           subscription: null,
+        },
+      },
+    });
+
+    const { res, json } = makeRes();
+    await stripeWebhookHandler(makeReq(), res);
+
+    expect(mockDb.update).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith({ received: true });
+  });
+});
+
+describe("stripeWebhookHandler — customer.subscription.updated", () => {
+  const futureEpoch = Math.floor(Date.now() / 1000) + 30 * 24 * 3600;
+
+  it("syncs status and currentPeriodEnd for the matching customer", async () => {
+    mockStripeInstance.webhooks.constructEvent.mockReturnValue({
+      type: "customer.subscription.updated",
+      id: "evt_011",
+      data: {
+        object: {
+          customer: "cus_abc",
+          status: "active",
+          items: { data: [{ current_period_end: futureEpoch, price: { id: "price_123" } }] },
+        },
+      },
+    });
+
+    const { res, json, status } = makeRes();
+    await stripeWebhookHandler(makeReq(), res);
+
+    expect(status).not.toHaveBeenCalled();
+    expect(json).toHaveBeenCalledWith({ received: true });
+
+    expect(mockDb.update).toHaveBeenCalledOnce();
+    const setArgs = mockUpdateChain.set.mock.calls[0][0];
+    expect(setArgs).toMatchObject({ status: "active", currentPeriodEnd: new Date(futureEpoch * 1000) });
+    expect(setArgs).toHaveProperty("updatedAt");
+  });
+
+  it("maps stripe canceled status to cancelled", async () => {
+    mockStripeInstance.webhooks.constructEvent.mockReturnValue({
+      type: "customer.subscription.updated",
+      id: "evt_012",
+      data: {
+        object: {
+          customer: "cus_abc",
+          status: "canceled",
+          items: { data: [] },
+        },
+      },
+    });
+
+    const { res, json } = makeRes();
+    await stripeWebhookHandler(makeReq(), res);
+
+    expect(json).toHaveBeenCalledWith({ received: true });
+    const setArgs = mockUpdateChain.set.mock.calls[0][0];
+    expect(setArgs.status).toBe("cancelled");
+  });
+
+  it("invalidates the plan cache for the affected user", async () => {
+    mockStripeInstance.webhooks.constructEvent.mockReturnValue({
+      type: "customer.subscription.updated",
+      id: "evt_013",
+      data: {
+        object: {
+          customer: "cus_abc",
+          status: "active",
+          items: { data: [] },
+        },
+      },
+    });
+
+    const { res } = makeRes();
+    await stripeWebhookHandler(makeReq(), res);
+
+    expect(mockInvalidatePlanCache).toHaveBeenCalledWith("user_123");
+  });
+
+  it("skips update when customerId is missing", async () => {
+    mockStripeInstance.webhooks.constructEvent.mockReturnValue({
+      type: "customer.subscription.updated",
+      id: "evt_014",
+      data: {
+        object: {
+          customer: null,
+          status: "active",
+          items: { data: [] },
         },
       },
     });

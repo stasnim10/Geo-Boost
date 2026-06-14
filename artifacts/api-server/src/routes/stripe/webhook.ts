@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { db, subscriptionsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { invalidatePlanCache } from "../../lib/plan-check";
 
 function getStripe(): Stripe {
   const key = process.env.STRIPE_SECRET_KEY;
@@ -95,6 +96,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
               },
             });
 
+          invalidatePlanCache(clerkUserId);
           logger.info({ clerkUserId, sessionId: session.id }, "Fix package subscription upserted");
         } else if (session.mode === "subscription") {
           const plan: Plan = (session.metadata?.plan as Plan) ?? "free";
@@ -133,6 +135,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
               },
             });
 
+          invalidatePlanCache(clerkUserId);
           logger.info({ clerkUserId, plan, sessionId: session.id }, "Subscription upserted from checkout");
         }
         break;
@@ -161,6 +164,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
           .where(eq(subscriptionsTable.stripeCustomerId, customerId))
           .returning({ clerkUserId: subscriptionsTable.clerkUserId });
 
+        for (const row of updated) invalidatePlanCache(row.clerkUserId);
         logger.info({ customerId, updatedCount: updated.length }, "invoice.paid: refreshed currentPeriodEnd");
         break;
       }
@@ -180,6 +184,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
           .where(eq(subscriptionsTable.stripeCustomerId, customerId))
           .returning({ clerkUserId: subscriptionsTable.clerkUserId });
 
+        for (const row of updated) invalidatePlanCache(row.clerkUserId);
         logger.info({ customerId, status, updatedCount: updated.length }, "customer.subscription.updated: synced status");
         break;
       }
@@ -195,6 +200,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
           .where(eq(subscriptionsTable.stripeCustomerId, customerId))
           .returning({ clerkUserId: subscriptionsTable.clerkUserId });
 
+        for (const row of updated) invalidatePlanCache(row.clerkUserId);
         logger.info({ customerId, updatedCount: updated.length }, "customer.subscription.deleted: downgraded to free");
         break;
       }
