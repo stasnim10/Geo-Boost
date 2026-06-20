@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
 import { Resend } from "resend";
-import { db, trackedQueriesTable, queryTrackingTable, auditsTable, monitorReportLogsTable } from "@workspace/db";
+import { db, trackedQueriesTable, queryTrackingTable, auditsTable, monitorReportLogsTable, subscriptionsTable } from "@workspace/db";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, inArray } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { requireAuth } from "../audits/index";
 import { parseLLMJson } from "../../lib/parse-llm-json";
@@ -380,8 +380,19 @@ async function runWeeklyJobIfDue(): Promise<void> {
   lastWeeklyRun = weekKey;
   logger.info({ weekKey }, "Running weekly Monitor reports");
   try {
-    const setups = await db.select().from(trackedQueriesTable)
-      .where(eq(trackedQueriesTable.active, true));
+    const setups = await db.select({
+      clerkUserId: trackedQueriesTable.clerkUserId,
+      domain: trackedQueriesTable.domain,
+      queries: trackedQueriesTable.queries,
+      email: trackedQueriesTable.email,
+    })
+      .from(trackedQueriesTable)
+      .innerJoin(subscriptionsTable, eq(trackedQueriesTable.clerkUserId, subscriptionsTable.clerkUserId))
+      .where(and(
+        eq(trackedQueriesTable.active, true),
+        inArray(subscriptionsTable.plan, ["monitor", "grow"]),
+        eq(subscriptionsTable.status, "active"),
+      ));
     for (const setup of setups) {
       try {
         await runWeeklyReportForUser(
@@ -405,8 +416,19 @@ async function runWeeklyJobIfDue(): Promise<void> {
 export async function runStartupCatchup(): Promise<void> {
   const weekKey = getThisMondayKey();
   try {
-    const setups = await db.select().from(trackedQueriesTable)
-      .where(eq(trackedQueriesTable.active, true));
+    const setups = await db.select({
+      clerkUserId: trackedQueriesTable.clerkUserId,
+      domain: trackedQueriesTable.domain,
+      queries: trackedQueriesTable.queries,
+      email: trackedQueriesTable.email,
+    })
+      .from(trackedQueriesTable)
+      .innerJoin(subscriptionsTable, eq(trackedQueriesTable.clerkUserId, subscriptionsTable.clerkUserId))
+      .where(and(
+        eq(trackedQueriesTable.active, true),
+        inArray(subscriptionsTable.plan, ["monitor", "grow"]),
+        eq(subscriptionsTable.status, "active"),
+      ));
     if (setups.length === 0) return;
 
     const alreadySent = await db.select()
