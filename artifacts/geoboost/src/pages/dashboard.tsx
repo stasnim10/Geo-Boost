@@ -84,8 +84,7 @@ function AuditCard({
       const data = await res.json() as { token?: string };
       if (res.ok && data.token) {
         const origin = window.location.origin;
-        const base = import.meta.env.BASE_URL.replace(/\/$/, "");
-        setShareUrl(`${origin}${base}/shared/${data.token}`);
+        setShareUrl(`${origin}/api/audits/shared/${data.token}`);
         setShareStatus("ready");
       } else {
         setShareStatus("error");

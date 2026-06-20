@@ -110,7 +110,7 @@ function ShareResultsSection({ result, category }: { result: AuditResult; catego
       });
       const data = await res.json() as { token?: string; error?: string };
       if (res.ok && data.token) {
-        const url = `${window.location.origin}${window.location.pathname.replace(/\/results.*/, "")}/shared/${data.token}`;
+        const url = `${window.location.origin}/api/audits/shared/${data.token}`;
         setShareUrl(url);
         setStatus("ready");
       } else {

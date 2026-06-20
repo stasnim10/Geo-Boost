@@ -28,7 +28,7 @@ export default function SharedResultsPage() {
 
   useEffect(() => {
     if (!token) { setError("Invalid share link."); setLoading(false); return; }
-    fetch(`/api/audits/shared/${token}`)
+    fetch(`/api/audits/shared/${token}`, { headers: { Accept: "application/json" } })
       .then((r) => r.json() as Promise<SharedResult & { error?: string }>)
       .then((data) => {
         if (data.error) { setError(data.error); } else { setResult(data); }
