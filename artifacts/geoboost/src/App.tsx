@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { ClerkProvider, SignIn, SignUp, Show, useClerk } from "@clerk/react";
 import { publishableKeyFromHost } from "@clerk/react/internal";
 import { shadcn } from "@clerk/themes";
-import { Switch, Route, useLocation, Router as WouterRouter } from "wouter";
+import { Switch, Route, useLocation, useSearch, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -106,6 +106,10 @@ function SignInPage() {
 }
 
 function SignUpPage() {
+  const search = useSearch();
+  const params = new URLSearchParams(search);
+  const prefillEmail = params.get("email") || undefined;
+
   return (
     <div className="flex min-h-[85dvh] items-center justify-center bg-slate-50 px-4 py-16">
       <SignUp
@@ -113,6 +117,7 @@ function SignUpPage() {
         path={`${basePath}/sign-up`}
         signInUrl={`${basePath}/sign-in`}
         fallbackRedirectUrl={`${basePath}/dashboard`}
+        initialValues={prefillEmail ? { emailAddress: prefillEmail } : undefined}
       />
     </div>
   );

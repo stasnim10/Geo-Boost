@@ -307,6 +307,12 @@ async function sendWelcomeEmail(params: {
     return;
   }
 
+  const from = process.env.RESEND_FROM_EMAIL;
+  if (!from) {
+    logger.warn("RESEND_FROM_EMAIL not set — skipping welcome email to avoid sending from Resend default");
+    return;
+  }
+
   const { email, name, url, category, auditResponse } = params;
   const { aiVisibilityScore, weaknesses } = auditResponse;
 
@@ -317,12 +323,16 @@ async function sendWelcomeEmail(params: {
     ? `https://${process.env.REPLIT_DOMAINS.split(",")[0]}`
     : "https://showmeonai.com";
 
+  let domain = url;
+  try { domain = new URL(url).hostname.replace(/^www\./, ""); } catch { /* keep */ }
+
+  const signUpUrl = `${appUrl}/sign-up?email=${encodeURIComponent(email)}`;
   const quickWins = weaknesses.slice(0, 3);
   const firstName = name.split(" ")[0] || name;
 
   const html = `<!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Welcome to GEOboost</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Your AI Visibility Results — Show me on AI</title></head>
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,system-ui,-apple-system,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:32px 16px;">
 <tr><td align="center">
@@ -331,16 +341,16 @@ async function sendWelcomeEmail(params: {
 <!-- Header -->
 <tr><td style="background:#0f172a;padding:28px 32px;">
   <table width="100%" cellpadding="0" cellspacing="0"><tr>
-    <td><span style="color:#22c55e;font-size:22px;font-weight:800;letter-spacing:-0.5px;">📈 GEOboost</span>
-    <p style="color:#94a3b8;margin:8px 0 0;font-size:13px;">Welcome — your first AI visibility audit is in</p></td>
+    <td><span style="color:#22c55e;font-size:22px;font-weight:800;letter-spacing:-0.5px;">Show me on AI</span>
+    <p style="color:#94a3b8;margin:8px 0 0;font-size:13px;">Your AI visibility audit results are in</p></td>
   </tr></table>
 </td></tr>
 
 <!-- Greeting -->
 <tr><td style="padding:28px 32px 20px;">
-  <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">Welcome, ${firstName}! 👋</h1>
+  <h1 style="margin:0 0 8px;font-size:22px;font-weight:700;color:#0f172a;">Hi ${firstName}! 👋</h1>
   <p style="margin:0;color:#64748b;font-size:14px;line-height:1.6;">
-    You just ran your first AI visibility audit for <strong style="color:#0f172a;">${url}</strong>. Here's what we found — and what to fix first.
+    Here are the AI visibility results for <strong style="color:#0f172a;">${domain}</strong>. See your score, the biggest gaps, and what to fix first.
   </p>
 </td></tr>
 
@@ -356,8 +366,8 @@ async function sendWelcomeEmail(params: {
 
 <!-- Quick wins -->
 <tr><td style="padding:0 32px 24px;">
-  <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#0f172a;">⚡ Your 3 Quick Wins</h2>
-  <p style="margin:0 0 12px;color:#64748b;font-size:13px;">Fix these first — they'll have the biggest impact on your AI visibility:</p>
+  <h2 style="margin:0 0 12px;font-size:15px;font-weight:700;color:#0f172a;">⚡ Your 3 Biggest Gaps to Fix</h2>
+  <p style="margin:0 0 12px;color:#64748b;font-size:13px;">Fix these first — they'll have the biggest impact on how often AI recommends you:</p>
   ${quickWins.map((w, i) => `
   <div style="background:#fef2f2;border-radius:8px;padding:12px 14px;margin-bottom:8px;border-left:3px solid #ef4444;">
     <span style="color:#991b1b;font-size:12px;font-weight:700;margin-right:6px;">${i + 1}.</span>
@@ -365,23 +375,27 @@ async function sendWelcomeEmail(params: {
   </div>`).join("")}
 </td></tr>
 
-<!-- CTA -->
-<tr><td style="padding:0 32px 32px;">
-  <div style="background:#0f172a;border-radius:12px;padding:24px;text-align:center;">
-    <p style="color:#ffffff;font-size:16px;font-weight:700;margin:0 0 6px;">Track your progress weekly</p>
-    <p style="color:#94a3b8;font-size:13px;margin:0 0 16px;">Upgrade to Monitor and get a weekly AI visibility report every Monday — so you always know if your fixes are working.</p>
-    <a href="${appUrl}/pricing?plan=monitor" style="display:inline-block;background:#22c55e;color:#ffffff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Monitor My Progress — $29/mo →</a>
+<!-- Create account CTA -->
+<tr><td style="padding:0 32px 16px;">
+  <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:24px;text-align:center;">
+    <p style="color:#14532d;font-size:16px;font-weight:700;margin:0 0 6px;">Save your score &amp; track progress</p>
+    <p style="color:#166534;font-size:13px;margin:0 0 16px;">Create your free account to revisit this audit anytime, compare against competitors, and see if AI mentions of your business improve over time.</p>
+    <a href="${signUpUrl}" style="display:inline-block;background:#22c55e;color:#ffffff;font-weight:700;font-size:14px;padding:12px 28px;border-radius:8px;text-decoration:none;">Create Free Account →</a>
   </div>
 </td></tr>
 
-<!-- View report link -->
-<tr><td style="padding:0 32px 24px;text-align:center;">
-  <a href="${appUrl}/dashboard" style="color:#3b82f6;font-size:13px;text-decoration:none;">View your full audit report in the dashboard →</a>
+<!-- Monitor upsell -->
+<tr><td style="padding:0 32px 32px;">
+  <div style="background:#0f172a;border-radius:12px;padding:20px 24px;text-align:center;">
+    <p style="color:#ffffff;font-size:14px;font-weight:700;margin:0 0 4px;">Want to know if your fixes are working?</p>
+    <p style="color:#94a3b8;font-size:12px;margin:0 0 14px;">Upgrade to Monitor — get a weekly AI visibility report every Monday.</p>
+    <a href="${appUrl}/pricing?plan=monitor" style="display:inline-block;background:#334155;color:#e2e8f0;font-weight:600;font-size:13px;padding:10px 22px;border-radius:8px;text-decoration:none;">See Monitor Plan →</a>
+  </div>
 </td></tr>
 
 <!-- Footer -->
 <tr><td style="padding:16px 32px 24px;border-top:1px solid #f1f5f9;">
-  <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center;">GEOboost · Generative Engine Optimization · You're receiving this because you ran your first audit.</p>
+  <p style="margin:0;color:#94a3b8;font-size:11px;text-align:center;">Show me on AI · Generative Engine Optimization · You requested this audit for ${domain}.</p>
 </td></tr>
 
 </table>
@@ -390,18 +404,12 @@ async function sendWelcomeEmail(params: {
 </body>
 </html>`;
 
-  const from = process.env.RESEND_FROM_EMAIL;
-  if (!from) {
-    logger.warn("RESEND_FROM_EMAIL not set — skipping welcome email to avoid sending from Resend default");
-    return;
-  }
-
   const resend = new Resend(apiKey);
 
   const { error } = await resend.emails.send({
     from,
     to: [email],
-    subject: `Your GEO audit score: ${aiVisibilityScore}/100 — here are your 3 quick wins`,
+    subject: `Your AI Visibility Score for ${domain}: ${aiVisibilityScore}/100`,
     html,
   });
 
@@ -551,6 +559,11 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
       } catch (err) {
         logger.warn({ err }, "Failed to save audit to DB");
       }
+    } else if (email) {
+      // Anonymous user — send results email with sign-up CTA to convert them
+      sendWelcomeEmail({ email, name, auditResponse, url, category }).catch(err =>
+        logger.warn({ err }, "Welcome email (anonymous) failed")
+      );
     }
 
     res.json(auditResponse);
