@@ -1,4 +1,5 @@
 import { anthropic } from "@workspace/integrations-anthropic-ai";
+import { batchProcess } from "@workspace/integrations-anthropic-ai/batch";
 import { openai } from "@workspace/integrations-openai-ai-server";
 import { ai as gemini } from "@workspace/integrations-gemini-ai";
 import { openrouter } from "@workspace/integrations-openrouter-ai";
@@ -37,21 +38,6 @@ Rules:
 - Rank 1 = first / top recommendation, increasing from there
 - Include a URL only if it appears in the response text; otherwise use null
 - If no specific businesses are mentioned, use an empty array []`;
-}
-
-async function withRetry<T>(fn: () => Promise<T>, retries = 2, baseDelayMs = 600): Promise<T> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastErr = err;
-      if (attempt < retries) {
-        await new Promise(res => setTimeout(res, baseDelayMs * (attempt + 1)));
-      }
-    }
-  }
-  throw lastErr;
 }
 
 async function extractWithClaude(
@@ -183,7 +169,7 @@ async function runModelQuery(
   domain?: string,
 ): Promise<ModelCitationResult> {
   try {
-    const raw = await withRetry(() => MODEL_FETCHERS[model](query));
+    const raw = await MODEL_FETCHERS[model](query);
     const { answer, businesses } = await extractWithClaude(query, raw);
     const searchText = raw + " " + businesses.map(b => b.url ?? "").join(" ");
     const { mentioned, position } = checkMentioned(searchText, domain);
@@ -219,7 +205,12 @@ export async function runCitationTest(options: CitationTestOptions): Promise<Cit
   const start = Date.now();
 
   const models: AiModel[] = ["chatgpt", "claude", "gemini", "perplexity"];
-  const results = await Promise.all(models.map(model => runModelQuery(model, query, domain)));
+
+  const results = await batchProcess(
+    models,
+    (model) => runModelQuery(model, query, domain),
+    { concurrency: 4, retries: 2, minTimeout: 600, maxTimeout: 5000 },
+  );
 
   return {
     query,

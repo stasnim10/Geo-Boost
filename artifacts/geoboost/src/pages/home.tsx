@@ -362,7 +362,9 @@ export default function Home() {
         <p className="text-sm text-slate-400 mt-3">No tech knowledge needed. Results in 60 seconds.</p>
       </div>
 
-      <div className="w-full max-w-xl bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden">
+      <SimulatorSection />
+
+      <div className="w-full max-w-xl bg-white rounded-xl shadow-xl border border-slate-200 overflow-hidden mt-16">
         <div className="p-8">
           {runAudit.isPending ? (
             <div className="py-12 flex flex-col items-center justify-center text-center">
@@ -581,10 +583,6 @@ export default function Home() {
         <p className="text-center text-xs text-slate-400 mt-3">Source: Surfer SEO study of 405,576 Google AI overview searches</p>
       </div>
 
-      {/* Divider */}
-      <div className="w-full max-w-5xl mt-10 mb-0 border-t border-slate-100" />
-
-      <SimulatorSection />
     </div>
   );
 }
