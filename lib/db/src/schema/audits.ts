@@ -12,6 +12,7 @@ export const auditsTable = pgTable("audits", {
   aiVisibilityScore: integer("ai_visibility_score").notNull(),
   semanticDensityScore: integer("semantic_density_score").notNull(),
   structuralFormattingScore: integer("structural_formatting_score").notNull(),
+  aiCitationScore: integer("ai_citation_score"),
   weaknesses: jsonb("weaknesses").$type<string[]>().notNull(),
   competitorPatterns: jsonb("competitor_patterns").$type<string[]>().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),

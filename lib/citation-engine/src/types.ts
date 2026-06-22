@@ -21,6 +21,7 @@ export interface ModelCitationResult {
 export interface CitationTestOptions {
   query: string;
   domain?: string;
+  models?: AiModel[];
 }
 
 export interface CitationTestResult {

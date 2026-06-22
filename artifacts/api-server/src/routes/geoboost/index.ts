@@ -531,21 +531,15 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
 
       req.log.info({ url, queries, modelsToTest, userPlan }, "Running citation tests");
 
-      // Run citation tests for each query concurrently
+      // Run citation tests for each query concurrently — only invoke allowed models at the source
       const domain = (() => {
         try { return new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(/^www\./, ""); }
         catch { return url; }
       })();
 
-      const rawCitationResults = await Promise.all(
-        queries.map(query => runCitationTest({ query, domain })),
+      citationResults = await Promise.all(
+        queries.map(query => runCitationTest({ query, domain, models: modelsToTest })),
       );
-
-      // Filter results to only the selected models
-      citationResults = rawCitationResults.map(r => ({
-        ...r,
-        results: r.results.filter(m => modelsToTest.includes(m.model as "chatgpt" | "claude" | "gemini" | "perplexity")),
-      }));
 
       // Calculate aiCitationScore: position-weighted score across all (model × query) combinations
       // Position 1 = 100 pts, position 2 = 50 pts, position 3 = 33 pts, etc. Not mentioned = 0 pts.
@@ -600,6 +594,7 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
           aiVisibilityScore: auditResponse.aiVisibilityScore,
           semanticDensityScore: auditResponse.semanticDensityScore,
           structuralFormattingScore: auditResponse.structuralFormattingScore,
+          aiCitationScore: aiCitationScore ?? null,
           weaknesses: auditResponse.weaknesses,
           competitorPatterns: auditResponse.competitorPatterns,
         }).returning({ id: auditsTable.id });

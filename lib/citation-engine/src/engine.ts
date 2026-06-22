@@ -201,10 +201,12 @@ async function runModelQuery(
 }
 
 export async function runCitationTest(options: CitationTestOptions): Promise<CitationTestResult> {
-  const { query, domain } = options;
+  const { query, domain, models: requestedModels } = options;
   const start = Date.now();
 
-  const models: AiModel[] = ["chatgpt", "claude", "gemini", "perplexity"];
+  const models: AiModel[] = requestedModels && requestedModels.length > 0
+    ? requestedModels
+    : ["chatgpt", "claude", "gemini", "perplexity"];
 
   const results = await batchProcess(
     models,
