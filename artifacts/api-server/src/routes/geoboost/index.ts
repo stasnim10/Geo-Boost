@@ -3,11 +3,12 @@ import { getAuth } from "@clerk/express";
 import { Resend } from "resend";
 import { RunAuditBody, OptimizeContentBody, DetectCategoryBody } from "@workspace/api-zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { db, auditsTable, sharedResultsTable, waitlistTable } from "@workspace/db";
+import { db, auditsTable, citationResultsTable, sharedResultsTable, waitlistTable } from "@workspace/db";
 import { eq, count } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { parseLLMJson } from "../../lib/parse-llm-json";
-import { requirePlan } from "../../lib/plan-check";
+import { requirePlan, getUserPlan } from "../../lib/plan-check";
+import { runCitationTest, type CitationTestResult } from "@workspace/citation-engine";
 
 const router: IRouter = Router();
 
@@ -515,21 +516,64 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
       req.log.info({ url }, "Bing not indexed — capping score at 20");
     }
 
+    // ── Citation testing (plan-gated) ──────────────────────────────────────
+    const auth = getAuth(req);
+    let citationResults: CitationTestResult[] | null = null;
+    let aiCitationScore: number | null = null;
+
+    try {
+      const userPlan = auth?.userId ? (await getUserPlan(auth.userId)).plan : "free";
+      // Free plan: Claude only; Monitor/Grow: all 4 models
+      const modelsToTest: ("chatgpt" | "claude" | "gemini" | "perplexity")[] =
+        userPlan === "monitor" || userPlan === "grow"
+          ? ["chatgpt", "claude", "gemini", "perplexity"]
+          : ["claude"];
+
+      req.log.info({ url, queries, modelsToTest, userPlan }, "Running citation tests");
+
+      // Run citation tests for each query concurrently
+      const domain = (() => {
+        try { return new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(/^www\./, ""); }
+        catch { return url; }
+      })();
+
+      const rawCitationResults = await Promise.all(
+        queries.map(query => runCitationTest({ query, domain })),
+      );
+
+      // Filter results to only the selected models
+      citationResults = rawCitationResults.map(r => ({
+        ...r,
+        results: r.results.filter(m => modelsToTest.includes(m.model as "chatgpt" | "claude" | "gemini" | "perplexity")),
+      }));
+
+      // Calculate aiCitationScore: % of (model × query) combinations where domain is mentioned
+      const allModelResults = citationResults.flatMap(r => r.results);
+      const mentionedCount = allModelResults.filter(m => m.mentioned).length;
+      const totalCount = allModelResults.length;
+      aiCitationScore = totalCount > 0 ? Math.round((mentionedCount / totalCount) * 100) : 0;
+
+      req.log.info({ url, aiCitationScore, mentionedCount, totalCount }, "Citation tests complete");
+    } catch (err) {
+      logger.warn({ err }, "Citation tests failed — continuing without citation data");
+    }
+
     const auditResponse = {
       aiVisibilityScore,
       semanticDensityScore: Math.min(100, Math.max(0, auditData.semanticDensityScore)),
       structuralFormattingScore: Math.min(100, Math.max(0, auditData.structuralFormattingScore)),
+      aiCitationScore,
       weaknesses: auditData.weaknesses.slice(0, 3),
       competitorPatterns: auditData.competitorPatterns.slice(0, 3),
       scrapedUrl: url,
       bingIndexed,
       blockedBots,
+      citationResults,
     };
 
     req.log.info({ url, score: auditResponse.aiVisibilityScore }, "Audit complete");
 
     // Save to DB if user is logged in
-    const auth = getAuth(req);
     if (auth?.userId) {
       try {
         const [{ existingCount }] = await db
@@ -537,7 +581,7 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
           .from(auditsTable)
           .where(eq(auditsTable.clerkUserId, auth.userId));
 
-        await db.insert(auditsTable).values({
+        const [insertedAudit] = await db.insert(auditsTable).values({
           clerkUserId: auth.userId,
           url,
           category,
@@ -548,7 +592,27 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
           structuralFormattingScore: auditResponse.structuralFormattingScore,
           weaknesses: auditResponse.weaknesses,
           competitorPatterns: auditResponse.competitorPatterns,
-        });
+        }).returning({ id: auditsTable.id });
+
+        // Save citation results to DB
+        if (insertedAudit && citationResults) {
+          const rows = citationResults.flatMap(queryResult =>
+            queryResult.results.map(modelResult => ({
+              auditId: insertedAudit.id,
+              query: queryResult.query,
+              model: modelResult.model as "chatgpt" | "claude" | "gemini" | "perplexity",
+              mentioned: modelResult.mentioned,
+              position: modelResult.position ?? null,
+              competitors: modelResult.businesses,
+              sources: modelResult.sources,
+              excerpt: modelResult.excerpt,
+            })),
+          );
+          if (rows.length > 0) {
+            await db.insert(citationResultsTable).values(rows);
+          }
+        }
+
         req.log.info({ userId: auth.userId }, "Audit saved to DB");
 
         if (existingCount === 0) {

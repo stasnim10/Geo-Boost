@@ -7,6 +7,9 @@
  */
 
 export * from "./apiError";
+export * from "./auditCitationModelResult";
+export * from "./auditCitationModelResultModel";
+export * from "./auditCitationQueryResult";
 export * from "./auditRequest";
 export * from "./auditResult";
 export * from "./citationBusiness";

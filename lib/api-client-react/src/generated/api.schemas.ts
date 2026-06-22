@@ -28,6 +28,39 @@ export interface AuditRequest {
   email: string;
 }
 
+export type AuditCitationModelResultModel =
+  (typeof AuditCitationModelResultModel)[keyof typeof AuditCitationModelResultModel];
+
+export const AuditCitationModelResultModel = {
+  chatgpt: "chatgpt",
+  claude: "claude",
+  gemini: "gemini",
+  perplexity: "perplexity",
+} as const;
+
+export interface CitationBusiness {
+  name: string;
+  rank: number;
+  url: string | null;
+}
+
+export interface AuditCitationModelResult {
+  model: AuditCitationModelResultModel;
+  modelLabel: string;
+  mentioned: boolean;
+  position: number | null;
+  businesses: CitationBusiness[];
+  sources: string[];
+  excerpt: string;
+  error?: string;
+}
+
+export interface AuditCitationQueryResult {
+  query: string;
+  results: AuditCitationModelResult[];
+  durationMs: number;
+}
+
 export interface AuditResult {
   /**
    * @minimum 0
@@ -44,6 +77,12 @@ export interface AuditResult {
    * @maximum 100
    */
   structuralFormattingScore: number;
+  /**
+   * Real citation score from live AI model tests (null if not available on free plan)
+   * @minimum 0
+   * @maximum 100
+   */
+  aiCitationScore?: number | null;
   /** Three specific weaknesses found in the content */
   weaknesses: string[];
   /** Three competitor content patterns AI prefers */
@@ -54,6 +93,8 @@ export interface AuditResult {
   bingIndexed?: boolean;
   /** List of AI crawlers blocked in robots.txt (e.g. GPTBot, ClaudeBot) */
   blockedBots?: string[];
+  /** Live citation test results per query (null if not available on free plan) */
+  citationResults?: AuditCitationQueryResult[] | null;
 }
 
 export interface OptimizeRequest {
@@ -111,12 +152,6 @@ export interface SimulateCitationRequest {
   query: string;
   /** Optional business domain to check for mentions (e.g. mybusiness.com) */
   domain?: string;
-}
-
-export interface CitationBusiness {
-  name: string;
-  rank: number;
-  url: string | null;
 }
 
 export type ModelCitationResultModel =

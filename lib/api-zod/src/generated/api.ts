@@ -48,6 +48,9 @@ export const runAuditResponseSemanticDensityScoreMax = 100;
 export const runAuditResponseStructuralFormattingScoreMin = 0;
 export const runAuditResponseStructuralFormattingScoreMax = 100;
 
+export const runAuditResponseAiCitationScoreMin = 0;
+export const runAuditResponseAiCitationScoreMax = 100;
+
 export const RunAuditResponse = zod.object({
   aiVisibilityScore: zod
     .number()
@@ -61,6 +64,14 @@ export const RunAuditResponse = zod.object({
     .number()
     .min(runAuditResponseStructuralFormattingScoreMin)
     .max(runAuditResponseStructuralFormattingScoreMax),
+  aiCitationScore: zod
+    .number()
+    .min(runAuditResponseAiCitationScoreMin)
+    .max(runAuditResponseAiCitationScoreMax)
+    .nullish()
+    .describe(
+      "Real citation score from live AI model tests (null if not available on free plan)",
+    ),
   weaknesses: zod
     .array(zod.string())
     .describe("Three specific weaknesses found in the content"),
@@ -79,6 +90,35 @@ export const RunAuditResponse = zod.object({
     .optional()
     .describe(
       "List of AI crawlers blocked in robots.txt (e.g. GPTBot, ClaudeBot)",
+    ),
+  citationResults: zod
+    .array(
+      zod.object({
+        query: zod.string(),
+        results: zod.array(
+          zod.object({
+            model: zod.enum(["chatgpt", "claude", "gemini", "perplexity"]),
+            modelLabel: zod.string(),
+            mentioned: zod.boolean(),
+            position: zod.number().nullable(),
+            businesses: zod.array(
+              zod.object({
+                name: zod.string(),
+                rank: zod.number(),
+                url: zod.string().nullable(),
+              }),
+            ),
+            sources: zod.array(zod.string()),
+            excerpt: zod.string(),
+            error: zod.string().optional(),
+          }),
+        ),
+        durationMs: zod.number(),
+      }),
+    )
+    .nullish()
+    .describe(
+      "Live citation test results per query (null if not available on free plan)",
     ),
 });
 

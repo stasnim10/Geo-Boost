@@ -18,6 +18,7 @@
 //   export type Post = typeof postsTable.$inferSelect;
 
 export * from "./audits";
+export * from "./citation-results";
 export * from "./shared-results";
 export * from "./waitlist";
 export * from "./tracked-queries";

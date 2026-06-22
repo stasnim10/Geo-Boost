@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { Show, useUser } from "@clerk/react";
 import { Gauge } from "@/components/gauge";
-import { AuditResult } from "@workspace/api-client-react";
-import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check, ShieldAlert, ShieldCheck, Bot, ChevronRight, HelpCircle } from "lucide-react";
+import { AuditResult, AuditCitationQueryResult } from "@workspace/api-client-react";
+import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check, ShieldAlert, ShieldCheck, Bot, ChevronRight, HelpCircle, Search, Lock } from "lucide-react";
 
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
@@ -412,6 +412,172 @@ function WhyScoringLowModal({ result, category, onClose }: { result: AuditResult
   );
 }
 
+const MODEL_COLORS: Record<string, { bg: string; border: string; text: string; badge: string }> = {
+  chatgpt:    { bg: "bg-emerald-50",  border: "border-emerald-200", text: "text-emerald-900", badge: "bg-emerald-100 text-emerald-700" },
+  claude:     { bg: "bg-violet-50",   border: "border-violet-200",  text: "text-violet-900",  badge: "bg-violet-100 text-violet-700" },
+  gemini:     { bg: "bg-blue-50",     border: "border-blue-200",    text: "text-blue-900",    badge: "bg-blue-100 text-blue-700" },
+  perplexity: { bg: "bg-amber-50",    border: "border-amber-200",   text: "text-amber-900",   badge: "bg-amber-100 text-amber-700" },
+};
+
+const MODEL_ICONS: Record<string, string> = {
+  chatgpt: "🤖",
+  claude: "⚡",
+  gemini: "✨",
+  perplexity: "🔍",
+};
+
+function CitationModelCard({ result, domain }: { result: AuditCitationQueryResult["results"][number]; domain: string }) {
+  const colors = MODEL_COLORS[result.model] ?? MODEL_COLORS.chatgpt;
+  const icon = MODEL_ICONS[result.model] ?? "🤖";
+  const cleanDomain = domain.replace(/^www\./, "");
+
+  return (
+    <div className={`rounded-xl border ${colors.border} ${colors.bg} p-4`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-base">{icon}</span>
+          <span className={`text-sm font-bold ${colors.text}`}>{result.modelLabel}</span>
+        </div>
+        {result.error ? (
+          <span className="text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Error</span>
+        ) : result.mentioned ? (
+          <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Cited #{result.position ?? "?"}
+          </span>
+        ) : (
+          <span className="text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <X className="w-3 h-3" /> Not Cited
+          </span>
+        )}
+      </div>
+
+      {result.error ? (
+        <p className="text-xs text-slate-500 italic">Could not get a response from this model.</p>
+      ) : (
+        <>
+          {result.excerpt && (
+            <p className={`text-xs ${colors.text} leading-relaxed mb-3 line-clamp-3`}>"{result.excerpt}"</p>
+          )}
+          {result.businesses.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Businesses Recommended</p>
+              <div className="space-y-1">
+                {result.businesses.slice(0, 5).map((b, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className={`text-xs font-bold w-4 text-center ${b.name.toLowerCase().includes(cleanDomain) ? "text-green-600" : "text-slate-400"}`}>
+                      {b.rank}.
+                    </span>
+                    <span className={`text-xs ${b.name.toLowerCase().includes(cleanDomain) ? "font-bold text-green-700" : "text-slate-600"}`}>
+                      {b.name}
+                      {b.name.toLowerCase().includes(cleanDomain) && " ✓"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {result.businesses.length === 0 && !result.mentioned && (
+            <p className="text-xs text-slate-400 italic">No specific businesses were recommended for this query.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CitationResultsSection({ citationResults, aiCitationScore, domain, isPaidPlan }: {
+  citationResults: AuditCitationQueryResult[] | null | undefined;
+  aiCitationScore: number | null | undefined;
+  domain: string;
+  isPaidPlan: boolean;
+}) {
+  if (!citationResults || citationResults.length === 0) {
+    return (
+      <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200">
+        <div className="bg-slate-800 px-6 py-4 flex items-center gap-3">
+          <Search className="w-5 h-5 text-white flex-shrink-0" />
+          <h2 className="text-white font-bold text-lg">Live AI Citation Test</h2>
+        </div>
+        <div className="bg-slate-50 px-6 py-8 text-center">
+          {isPaidPlan ? (
+            <>
+              <p className="text-slate-500 text-sm mb-2">Citation test data unavailable for this audit.</p>
+              <p className="text-slate-400 text-xs">Run a new audit to see live citation results.</p>
+            </>
+          ) : (
+            <>
+              <Lock className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-700 font-semibold text-sm mb-1">Live Citation Testing Included on Monitor & Grow</p>
+              <p className="text-slate-500 text-xs mb-4 max-w-md mx-auto">
+                Upgrade to see exactly which queries each AI model cited you for, and which competitors they recommended instead.
+              </p>
+              <Link href="/pricing">
+                <button style={{ backgroundColor: "#10B981" }} className="px-5 py-2.5 text-white text-sm font-bold rounded-lg hover:opacity-90 transition-opacity">
+                  Upgrade to See Full Citation Data
+                </button>
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const totalTests = citationResults.flatMap(r => r.results).length;
+  const mentionedTests = citationResults.flatMap(r => r.results).filter(r => r.mentioned).length;
+
+  return (
+    <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200">
+      <div className="bg-slate-800 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-3">
+          <Search className="w-5 h-5 text-white flex-shrink-0" />
+          <div>
+            <h2 className="text-white font-bold text-lg">Live AI Citation Test</h2>
+            <p className="text-slate-400 text-xs">We asked real AI models your queries and recorded whether they cited you</p>
+          </div>
+        </div>
+        {aiCitationScore !== null && aiCitationScore !== undefined && (
+          <div className="flex items-center gap-3">
+            <div className="text-center">
+              <div className={`text-2xl font-extrabold ${aiCitationScore >= 50 ? "text-green-400" : aiCitationScore >= 25 ? "text-amber-400" : "text-red-400"}`}>
+                {aiCitationScore}%
+              </div>
+              <div className="text-slate-400 text-xs">Citation Rate</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-extrabold text-white">{mentionedTests}/{totalTests}</div>
+              <div className="text-slate-400 text-xs">Tests Cited</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white px-6 py-6 space-y-8">
+        {citationResults.map((queryResult, qi) => (
+          <div key={qi}>
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                {qi + 1}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">"{queryResult.query}"</p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Cited in {queryResult.results.filter(r => r.mentioned).length}/{queryResult.results.length} models
+                </p>
+              </div>
+            </div>
+            <div className={`grid gap-3 ${queryResult.results.length === 1 ? "grid-cols-1" : queryResult.results.length === 2 ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
+              {queryResult.results.map((modelResult, mi) => (
+                <CitationModelCard key={mi} result={modelResult} domain={domain} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function BingBlockerBanner({ url }: { url: string }) {
   const [expanded, setExpanded] = useState(false);
   const domain = url.replace(/^https?:\/\//, "").replace(/\/.*$/, "");
@@ -534,8 +700,18 @@ export default function Results() {
 
   const bingIndexed = (result as AuditResult & { bingIndexed?: boolean }).bingIndexed;
   const blockedBots = (result as AuditResult & { blockedBots?: string[] }).blockedBots ?? [];
+  const citationResults = (result as AuditResult & { citationResults?: AuditCitationQueryResult[] | null }).citationResults;
+  const aiCitationScore = (result as AuditResult & { aiCitationScore?: number | null }).aiCitationScore;
   const invisibilityRate = 100 - result.aiVisibilityScore;
   const roi = estimateMonthlyLoss(result.aiVisibilityScore, category);
+  const domain = (() => {
+    try { return new URL(result.scrapedUrl.startsWith("http") ? result.scrapedUrl : `https://${result.scrapedUrl}`).hostname.replace(/^www\./, ""); }
+    catch { return result.scrapedUrl; }
+  })();
+  // Free plan runs Claude only; paid plans run all 4 models
+  const isPaidPlan = citationResults !== null && citationResults !== undefined
+    ? (citationResults[0]?.results?.length ?? 0) > 1
+    : false;
 
   return (
     <div className="max-w-6xl mx-auto py-12 px-4 md:px-8">
@@ -620,6 +796,14 @@ export default function Results() {
           </Link>
         </div>
       </div>
+
+      {/* Live AI Citation Test */}
+      <CitationResultsSection
+        citationResults={citationResults}
+        aiCitationScore={aiCitationScore}
+        domain={domain}
+        isPaidPlan={isPaidPlan}
+      />
 
       {/* What This Is Costing You */}
       <div className="mb-8 rounded-2xl overflow-hidden border border-red-200">

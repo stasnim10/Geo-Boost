@@ -1,7 +1,24 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { Gauge } from "@/components/gauge";
-import { AlertTriangle, Zap, ExternalLink, Loader2 } from "lucide-react";
+import { AlertTriangle, Zap, ExternalLink, Loader2, Search, CheckCircle2, X } from "lucide-react";
+
+interface CitationModelResult {
+  model: string;
+  modelLabel: string;
+  mentioned: boolean;
+  position: number | null;
+  businesses: Array<{ name: string; rank: number; url: string | null }>;
+  sources: string[];
+  excerpt: string;
+  error?: string;
+}
+
+interface CitationQueryResult {
+  query: string;
+  results: CitationModelResult[];
+  durationMs: number;
+}
 
 interface SharedResult {
   url: string;
@@ -9,8 +26,10 @@ interface SharedResult {
   aiVisibilityScore: number;
   semanticDensityScore: number;
   structuralFormattingScore: number;
+  aiCitationScore?: number | null;
   weaknesses: string[];
   competitorPatterns: string[];
+  citationResults?: CitationQueryResult[] | null;
   createdAt: string;
 }
 
@@ -126,6 +145,101 @@ export default function SharedResultsPage() {
           </Link>
         </div>
       </div>
+
+      {/* Live AI Citation Test Results */}
+      {result.citationResults && result.citationResults.length > 0 && (
+        <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200">
+          <div className="bg-slate-800 px-6 py-4 flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <Search className="w-5 h-5 text-white flex-shrink-0" />
+              <div>
+                <h2 className="text-white font-bold text-lg">Live AI Citation Test</h2>
+                <p className="text-slate-400 text-xs">Real AI model responses recorded during audit</p>
+              </div>
+            </div>
+            {result.aiCitationScore !== null && result.aiCitationScore !== undefined && (
+              <div className="text-center">
+                <div className={`text-2xl font-extrabold ${result.aiCitationScore >= 50 ? "text-green-400" : result.aiCitationScore >= 25 ? "text-amber-400" : "text-red-400"}`}>
+                  {result.aiCitationScore}%
+                </div>
+                <div className="text-slate-400 text-xs">Citation Rate</div>
+              </div>
+            )}
+          </div>
+          <div className="bg-white px-6 py-6 space-y-8">
+            {result.citationResults.map((queryResult, qi) => {
+              const domain = (() => {
+                try { return new URL(result.url.startsWith("http") ? result.url : `https://${result.url}`).hostname.replace(/^www\./, ""); }
+                catch { return result.url; }
+              })();
+              return (
+                <div key={qi}>
+                  <div className="flex items-start gap-3 mb-4">
+                    <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{qi + 1}</div>
+                    <div>
+                      <p className="text-sm font-bold text-slate-800">"{queryResult.query}"</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        Cited in {queryResult.results.filter(r => r.mentioned).length}/{queryResult.results.length} models
+                      </p>
+                    </div>
+                  </div>
+                  <div className={`grid gap-3 ${queryResult.results.length === 1 ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
+                    {queryResult.results.map((modelResult, mi) => {
+                      const modelColors: Record<string, { bg: string; border: string; text: string }> = {
+                        chatgpt: { bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-900" },
+                        claude: { bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-900" },
+                        gemini: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-900" },
+                        perplexity: { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-900" },
+                      };
+                      const colors = modelColors[modelResult.model] ?? modelColors.claude;
+                      const icon = { chatgpt: "🤖", claude: "⚡", gemini: "✨", perplexity: "🔍" }[modelResult.model] ?? "🤖";
+                      return (
+                        <div key={mi} className={`rounded-xl border ${colors.border} ${colors.bg} p-4`}>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{icon}</span>
+                              <span className={`text-sm font-bold ${colors.text}`}>{modelResult.modelLabel}</span>
+                            </div>
+                            {modelResult.error ? (
+                              <span className="text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Error</span>
+                            ) : modelResult.mentioned ? (
+                              <span className="text-xs font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <CheckCircle2 className="w-3 h-3" /> Cited #{modelResult.position ?? "?"}
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                                <X className="w-3 h-3" /> Not Cited
+                              </span>
+                            )}
+                          </div>
+                          {!modelResult.error && modelResult.excerpt && (
+                            <p className={`text-xs ${colors.text} leading-relaxed mb-3 line-clamp-3`}>"{modelResult.excerpt}"</p>
+                          )}
+                          {!modelResult.error && modelResult.businesses.length > 0 && (
+                            <div>
+                              <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Businesses Recommended</p>
+                              <div className="space-y-1">
+                                {modelResult.businesses.slice(0, 5).map((b, bi) => (
+                                  <div key={bi} className="flex items-center gap-2">
+                                    <span className={`text-xs font-bold w-4 text-center ${b.name.toLowerCase().includes(domain) ? "text-green-600" : "text-slate-400"}`}>{b.rank}.</span>
+                                    <span className={`text-xs ${b.name.toLowerCase().includes(domain) ? "font-bold text-green-700" : "text-slate-600"}`}>
+                                      {b.name}{b.name.toLowerCase().includes(domain) && " ✓"}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Weaknesses + Competitor patterns */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">

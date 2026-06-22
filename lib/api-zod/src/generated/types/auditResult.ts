@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { AuditCitationQueryResult } from "./auditCitationQueryResult";
 
 export interface AuditResult {
   /**
@@ -22,6 +23,12 @@ export interface AuditResult {
    * @maximum 100
    */
   structuralFormattingScore: number;
+  /**
+   * Real citation score from live AI model tests (null if not available on free plan)
+   * @minimum 0
+   * @maximum 100
+   */
+  aiCitationScore?: number | null;
   /** Three specific weaknesses found in the content */
   weaknesses: string[];
   /** Three competitor content patterns AI prefers */
@@ -32,4 +39,6 @@ export interface AuditResult {
   bingIndexed?: boolean;
   /** List of AI crawlers blocked in robots.txt (e.g. GPTBot, ClaudeBot) */
   blockedBots?: string[];
+  /** Live citation test results per query (null if not available on free plan) */
+  citationResults?: AuditCitationQueryResult[] | null;
 }

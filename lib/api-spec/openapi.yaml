@@ -187,6 +187,54 @@ components:
         - queries
         - name
         - email
+    AuditCitationModelResult:
+      type: object
+      properties:
+        model:
+          type: string
+          enum: [chatgpt, claude, gemini, perplexity]
+        modelLabel:
+          type: string
+        mentioned:
+          type: boolean
+        position:
+          type: integer
+          nullable: true
+        businesses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CitationBusiness"
+        sources:
+          type: array
+          items:
+            type: string
+        excerpt:
+          type: string
+        error:
+          type: string
+      required:
+        - model
+        - modelLabel
+        - mentioned
+        - position
+        - businesses
+        - sources
+        - excerpt
+    AuditCitationQueryResult:
+      type: object
+      properties:
+        query:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuditCitationModelResult"
+        durationMs:
+          type: integer
+      required:
+        - query
+        - results
+        - durationMs
     AuditResult:
       type: object
       properties:
@@ -202,6 +250,12 @@ components:
           type: integer
           minimum: 0
           maximum: 100
+        aiCitationScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Real citation score from live AI model tests (null if not available on free plan)
         weaknesses:
           type: array
           items:
@@ -223,6 +277,12 @@ components:
           items:
             type: string
           description: List of AI crawlers blocked in robots.txt (e.g. GPTBot, ClaudeBot)
+        citationResults:
+          type: array
+          nullable: true
+          items:
+            $ref: "#/components/schemas/AuditCitationQueryResult"
+          description: Live citation test results per query (null if not available on free plan)
       required:
         - aiVisibilityScore
         - semanticDensityScore
