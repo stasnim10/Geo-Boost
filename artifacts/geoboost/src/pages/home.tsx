@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useRunAudit } from "@workspace/api-client-react";
 import { ShieldAlert, Crosshair, Search, Loader2, Sparkles, MapPin, LocateFixed } from "lucide-react";
+import SimulatorSection from "@/components/SimulatorSection";
 
 // ─── Query suggestions per category ─────────────────────────────────────────
 const QUERY_SUGGESTIONS: Record<string, string[]> = {
@@ -579,6 +580,11 @@ export default function Home() {
         </div>
         <p className="text-center text-xs text-slate-400 mt-3">Source: Surfer SEO study of 405,576 Google AI overview searches</p>
       </div>
+
+      {/* Divider */}
+      <div className="w-full max-w-5xl mt-10 mb-0 border-t border-slate-100" />
+
+      <SimulatorSection />
     </div>
   );
 }

@@ -106,6 +106,48 @@ export interface DetectCategoryResult {
   confidence: DetectCategoryResultConfidence;
 }
 
+export interface SimulateCitationRequest {
+  /** The search query to test across all AI models */
+  query: string;
+  /** Optional business domain to check for mentions (e.g. mybusiness.com) */
+  domain?: string;
+}
+
+export interface CitationBusiness {
+  name: string;
+  rank: number;
+  url: string | null;
+}
+
+export type ModelCitationResultModel =
+  (typeof ModelCitationResultModel)[keyof typeof ModelCitationResultModel];
+
+export const ModelCitationResultModel = {
+  chatgpt: "chatgpt",
+  claude: "claude",
+  gemini: "gemini",
+  perplexity: "perplexity",
+} as const;
+
+export interface ModelCitationResult {
+  model: ModelCitationResultModel;
+  modelLabel: string;
+  mentioned: boolean;
+  position: number | null;
+  businesses: CitationBusiness[];
+  sources: string[];
+  excerpt: string;
+  rawResponse: string;
+  error?: string;
+}
+
+export interface SimulateCitationResult {
+  query: string;
+  domain?: string;
+  results: ModelCitationResult[];
+  durationMs: number;
+}
+
 export interface ApiError {
   error: string;
   details?: string;

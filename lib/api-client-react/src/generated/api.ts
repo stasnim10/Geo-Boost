@@ -25,6 +25,8 @@ import type {
   HealthStatus,
   OptimizeRequest,
   OptimizeResult,
+  SimulateCitationRequest,
+  SimulateCitationResult,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -368,4 +370,90 @@ export const useOptimizeContent = <
   TContext
 > => {
   return useMutation(getOptimizeContentMutationOptions(options));
+};
+
+/**
+ * @summary Simulate AI search and return citation results from all 4 models
+ */
+export const getSimulateCitationUrl = () => {
+  return `/api/citation/simulate`;
+};
+
+export const simulateCitation = async (
+  simulateCitationRequest: SimulateCitationRequest,
+  options?: RequestInit,
+): Promise<SimulateCitationResult> => {
+  return customFetch<SimulateCitationResult>(getSimulateCitationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(simulateCitationRequest),
+  });
+};
+
+export const getSimulateCitationMutationOptions = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof simulateCitation>>,
+    TError,
+    { data: BodyType<SimulateCitationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof simulateCitation>>,
+  TError,
+  { data: BodyType<SimulateCitationRequest> },
+  TContext
+> => {
+  const mutationKey = ["simulateCitation"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof simulateCitation>>,
+    { data: BodyType<SimulateCitationRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return simulateCitation(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SimulateCitationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof simulateCitation>>
+>;
+export type SimulateCitationMutationBody = BodyType<SimulateCitationRequest>;
+export type SimulateCitationMutationError = ErrorType<ApiError>;
+
+/**
+ * @summary Simulate AI search and return citation results from all 4 models
+ */
+export const useSimulateCitation = <
+  TError = ErrorType<ApiError>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof simulateCitation>>,
+    TError,
+    { data: BodyType<SimulateCitationRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof simulateCitation>>,
+  TError,
+  { data: BodyType<SimulateCitationRequest> },
+  TContext
+> => {
+  return useMutation(getSimulateCitationMutationOptions(options));
 };

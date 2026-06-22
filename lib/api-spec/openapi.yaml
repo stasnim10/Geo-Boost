@@ -110,6 +110,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+  /citation/simulate:
+    post:
+      operationId: simulateCitation
+      tags: [geoboost]
+      summary: Simulate AI search and return citation results from all 4 models
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SimulateCitationRequest"
+      responses:
+        "200":
+          description: Citation results from ChatGPT, Claude, Gemini, and Perplexity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulateCitationResult"
+        "400":
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "429":
+          description: Rate limit exceeded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiError"
 components:
   schemas:
     HealthStatus:
@@ -267,6 +303,84 @@ components:
       required:
         - category
         - confidence
+    SimulateCitationRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The search query to test across all AI models
+        domain:
+          type: string
+          description: Optional business domain to check for mentions (e.g. mybusiness.com)
+      required:
+        - query
+    CitationBusiness:
+      type: object
+      properties:
+        name:
+          type: string
+        rank:
+          type: integer
+        url:
+          type: string
+          nullable: true
+      required:
+        - name
+        - rank
+        - url
+    ModelCitationResult:
+      type: object
+      properties:
+        model:
+          type: string
+          enum: [chatgpt, claude, gemini, perplexity]
+        modelLabel:
+          type: string
+        mentioned:
+          type: boolean
+        position:
+          type: integer
+          nullable: true
+        businesses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CitationBusiness"
+        sources:
+          type: array
+          items:
+            type: string
+        excerpt:
+          type: string
+        rawResponse:
+          type: string
+        error:
+          type: string
+      required:
+        - model
+        - modelLabel
+        - mentioned
+        - position
+        - businesses
+        - sources
+        - excerpt
+        - rawResponse
+    SimulateCitationResult:
+      type: object
+      properties:
+        query:
+          type: string
+        domain:
+          type: string
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModelCitationResult"
+        durationMs:
+          type: integer
+      required:
+        - query
+        - results
+        - durationMs
     ApiError:
       type: object
       properties:

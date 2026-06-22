@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "declarationMap": true,
+    "emitDeclarationOnly": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../lib/integrations-anthropic-ai" },
+    { "path": "../../lib/integrations-openai-ai-server" },
+    { "path": "../../lib/integrations-gemini-ai" },
+    { "path": "../../lib/integrations-openrouter-ai" }
+  ]
+}

@@ -131,3 +131,41 @@ export const OptimizeContentResponse = zod.object({
     )
     .describe("List of specific changes made with explanations"),
 });
+
+/**
+ * @summary Simulate AI search and return citation results from all 4 models
+ */
+export const SimulateCitationBody = zod.object({
+  query: zod.string().describe("The search query to test across all AI models"),
+  domain: zod
+    .string()
+    .optional()
+    .describe(
+      "Optional business domain to check for mentions (e.g. mybusiness.com)",
+    ),
+});
+
+export const SimulateCitationResponse = zod.object({
+  query: zod.string(),
+  domain: zod.string().optional(),
+  results: zod.array(
+    zod.object({
+      model: zod.enum(["chatgpt", "claude", "gemini", "perplexity"]),
+      modelLabel: zod.string(),
+      mentioned: zod.boolean(),
+      position: zod.number().nullable(),
+      businesses: zod.array(
+        zod.object({
+          name: zod.string(),
+          rank: zod.number(),
+          url: zod.string().nullable(),
+        }),
+      ),
+      sources: zod.array(zod.string()),
+      excerpt: zod.string(),
+      rawResponse: zod.string(),
+      error: zod.string().optional(),
+    }),
+  ),
+  durationMs: zod.number(),
+});
