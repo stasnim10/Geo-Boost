@@ -15,9 +15,10 @@ interface RateEntry {
 const rateStore = new Map<string, RateEntry>();
 
 function getClientIp(req: Request): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (typeof forwarded === "string") return forwarded.split(",")[0].trim();
-  return req.socket.remoteAddress ?? "unknown";
+  // req.ip is set correctly by Express when trust proxy is configured in app.ts.
+  // It uses the x-forwarded-for chain validated against the trusted proxy count,
+  // so client-supplied spoofed headers are ignored.
+  return req.ip ?? req.socket.remoteAddress ?? "unknown";
 }
 
 function checkRateLimit(ip: string): { allowed: boolean; remaining: number } {

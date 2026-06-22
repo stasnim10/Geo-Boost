@@ -356,7 +356,7 @@ export default function SimulatorSection() {
               Run a full AI visibility audit to see exactly where you stand — and what to fix to get cited by AI assistants.
             </p>
             <Button
-              onClick={() => { window.scrollTo({ top: 0, behavior: "smooth" }); }}
+              onClick={() => navigate("/sign-up")}
               className="bg-green-500 hover:bg-green-600 text-white font-bold px-6 py-2 h-auto text-base shadow-lg"
             >
               Check my AI visibility — Free →

@@ -15,6 +15,12 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Trust the first proxy hop (Replit's nginx reverse proxy) so req.ip
+// reflects the real client IP from x-forwarded-for rather than the proxy's IP.
+// Setting this to 1 means only the last x-forwarded-for entry added by the
+// trusted proxy is used — spoofed client-supplied headers are ignored.
+app.set("trust proxy", 1);
+
 app.use(
   pinoHttp({
     logger,

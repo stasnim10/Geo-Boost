@@ -13,33 +13,70 @@ const MODEL_LABELS: Record<AiModel, string> = {
   perplexity: "Perplexity",
 };
 
-const SYSTEM_PROMPT = `You are a helpful AI assistant. Answer the user's question naturally and helpfully.
+const NATURAL_SYSTEM_PROMPT = `You are a helpful AI assistant. Answer the user's question naturally and helpfully.`;
 
-You MUST respond with valid JSON only, in exactly this format:
+function buildExtractionPrompt(query: string, modelResponse: string): string {
+  return `You are a structured data extractor. Given an AI assistant's response to a user search query, extract key structured information.
+
+Original user query: "${query}"
+
+AI assistant response:
+${modelResponse.slice(0, 4000)}
+
+Extract the following and respond with ONLY valid JSON (no markdown fences, no explanation):
 {
-  "answer": "<your full, natural, helpful answer to the user's question>",
+  "answer": "<the key helpful answer, max 600 characters>",
   "businesses": [
-    { "name": "<business or service name>", "rank": 1, "url": "<website URL or null>" }
+    { "name": "<specific business/company/product name>", "rank": <integer starting at 1>, "url": "<URL string or null>" }
   ]
 }
 
-In the "businesses" array, list any specific businesses, companies, products, services, or providers you mention or recommend. Use rank 1 for the top/first recommendation, rank 2 for second, etc. If you don't recommend specific named businesses, use an empty array []. Include a URL if you know it, otherwise use null.`;
-
-interface RawModelResponse {
-  answer: string;
-  businesses?: Array<{ name?: string; rank?: number; url?: string | null }>;
+Rules:
+- Only list specific named businesses, companies, products, or service providers that are explicitly recommended
+- Do NOT include generic categories like "local coffee shops" or "nearby restaurants"
+- Rank 1 = first / top recommendation, increasing from there
+- Include a URL only if it appears in the response text; otherwise use null
+- If no specific businesses are mentioned, use an empty array []`;
 }
 
-function parseModelResponse(raw: string): { answer: string; businesses: CitationBusiness[] } {
+async function withRetry<T>(fn: () => Promise<T>, retries = 2, baseDelayMs = 600): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      if (attempt < retries) {
+        await new Promise(res => setTimeout(res, baseDelayMs * (attempt + 1)));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+async function extractWithClaude(
+  query: string,
+  rawResponse: string,
+): Promise<{ answer: string; businesses: CitationBusiness[] }> {
   try {
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return { answer: raw.slice(0, 500), businesses: [] };
-    const parsed = JSON.parse(jsonMatch[0]) as RawModelResponse;
-    const answer = typeof parsed.answer === "string" ? parsed.answer : raw.slice(0, 500);
+    const response = await anthropic.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 1024,
+      messages: [{ role: "user", content: buildExtractionPrompt(query, rawResponse) }],
+    });
+    const text = response.content[0]?.type === "text" ? response.content[0].text : "";
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return { answer: rawResponse.slice(0, 600), businesses: [] };
+    const parsed = JSON.parse(jsonMatch[0]) as {
+      answer?: string;
+      businesses?: Array<{ name?: string; rank?: number; url?: string | null }>;
+    };
+    const answer = typeof parsed.answer === "string" ? parsed.answer : rawResponse.slice(0, 600);
     const businesses: CitationBusiness[] = Array.isArray(parsed.businesses)
       ? parsed.businesses
-          .filter((b): b is { name: string; rank: number; url?: string | null } =>
-            typeof b === "object" && b !== null && typeof b.name === "string" && b.name.trim().length > 0
+          .filter(
+            (b): b is { name: string; rank: number; url?: string | null } =>
+              typeof b === "object" && b !== null && typeof b.name === "string" && b.name.trim().length > 0,
           )
           .map((b, i) => ({
             name: b.name.trim(),
@@ -49,7 +86,7 @@ function parseModelResponse(raw: string): { answer: string; businesses: Citation
       : [];
     return { answer, businesses };
   } catch {
-    return { answer: raw.slice(0, 500), businesses: [] };
+    return { answer: rawResponse.slice(0, 600), businesses: [] };
   }
 }
 
@@ -57,17 +94,26 @@ function extractSources(text: string): string[] {
   const urlRegex = /https?:\/\/[^\s"',>)]+/g;
   const matches = text.match(urlRegex) ?? [];
   const seen = new Set<string>();
-  return matches.filter(url => {
-    const clean = url.replace(/[.,;!?]+$/, "");
-    if (seen.has(clean)) return false;
-    seen.add(clean);
-    return true;
-  }).slice(0, 5);
+  return matches
+    .map(url => url.replace(/[.,;!?]+$/, ""))
+    .filter(url => {
+      if (seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    })
+    .slice(0, 5);
 }
 
-function checkMentioned(text: string, domain?: string): { mentioned: boolean; position: number | null } {
+function checkMentioned(
+  text: string,
+  domain?: string,
+): { mentioned: boolean; position: number | null } {
   if (!domain) return { mentioned: false, position: null };
-  const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "").toLowerCase();
+  const cleanDomain = domain
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/.*$/, "")
+    .toLowerCase();
   const lowerText = text.toLowerCase();
   if (!lowerText.includes(cleanDomain)) return { mentioned: false, position: null };
   const idx = lowerText.indexOf(cleanDomain);
@@ -78,82 +124,79 @@ function checkMentioned(text: string, domain?: string): { mentioned: boolean; po
   return { mentioned: true, position };
 }
 
-async function queryChatGPT(query: string): Promise<{ raw: string; answer: string; businesses: CitationBusiness[]; sources: string[] }> {
+async function fetchRawChatGPT(query: string): Promise<string> {
   const response = await openai.chat.completions.create({
-    model: "gpt-5.4",
-    max_completion_tokens: 8192,
+    model: "gpt-4.1-mini",
+    max_completion_tokens: 2048,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: NATURAL_SYSTEM_PROMPT },
       { role: "user", content: query },
     ],
   });
-  const raw = response.choices[0]?.message?.content ?? "";
-  const { answer, businesses } = parseModelResponse(raw);
-  return { raw, answer, businesses, sources: extractSources(raw) };
+  return response.choices[0]?.message?.content ?? "";
 }
 
-async function queryClaude(query: string): Promise<{ raw: string; answer: string; businesses: CitationBusiness[]; sources: string[] }> {
+async function fetchRawClaude(query: string): Promise<string> {
   const response = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 8192,
-    system: SYSTEM_PROMPT,
+    model: "claude-haiku-4-5",
+    max_tokens: 2048,
+    system: NATURAL_SYSTEM_PROMPT,
     messages: [{ role: "user", content: query }],
   });
-  const raw = response.content[0]?.type === "text" ? response.content[0].text : "";
-  const { answer, businesses } = parseModelResponse(raw);
-  return { raw, answer, businesses, sources: extractSources(raw) };
+  return response.content[0]?.type === "text" ? response.content[0].text : "";
 }
 
-async function queryGemini(query: string): Promise<{ raw: string; answer: string; businesses: CitationBusiness[]; sources: string[] }> {
+async function fetchRawGemini(query: string): Promise<string> {
   const response = await gemini.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: [
-      { role: "user", parts: [{ text: `${SYSTEM_PROMPT}\n\nUser question: ${query}` }] },
-    ],
-    config: { maxOutputTokens: 8192 },
+    model: "gemini-2.0-flash",
+    contents: [{ role: "user", parts: [{ text: query }] }],
+    config: {
+      maxOutputTokens: 2048,
+      systemInstruction: NATURAL_SYSTEM_PROMPT,
+    },
   });
-  const raw = response.text ?? "";
-  const { answer, businesses } = parseModelResponse(raw);
-  return { raw, answer, businesses, sources: extractSources(raw) };
+  return response.text ?? "";
 }
 
-async function queryPerplexity(query: string): Promise<{ raw: string; answer: string; businesses: CitationBusiness[]; sources: string[] }> {
+async function fetchRawPerplexity(query: string): Promise<string> {
   const response = await openrouter.chat.completions.create({
     model: PERPLEXITY_MODEL,
-    max_tokens: 8192,
+    max_tokens: 2048,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
+      { role: "system", content: NATURAL_SYSTEM_PROMPT },
       { role: "user", content: query },
     ],
   });
-  const raw = response.choices[0]?.message?.content ?? "";
-  const { answer, businesses } = parseModelResponse(raw);
-  return { raw, answer, businesses, sources: extractSources(raw) };
+  return response.choices[0]?.message?.content ?? "";
 }
+
+const MODEL_FETCHERS: Record<AiModel, (query: string) => Promise<string>> = {
+  chatgpt: fetchRawChatGPT,
+  claude: fetchRawClaude,
+  gemini: fetchRawGemini,
+  perplexity: fetchRawPerplexity,
+};
 
 async function runModelQuery(
   model: AiModel,
   query: string,
-  domain?: string
+  domain?: string,
 ): Promise<ModelCitationResult> {
   try {
-    let result: { raw: string; answer: string; businesses: CitationBusiness[]; sources: string[] };
-    if (model === "chatgpt") result = await queryChatGPT(query);
-    else if (model === "claude") result = await queryClaude(query);
-    else if (model === "gemini") result = await queryGemini(query);
-    else result = await queryPerplexity(query);
-
-    const { mentioned, position } = checkMentioned(result.raw + " " + result.businesses.map(b => b.url ?? "").join(" "), domain);
+    const raw = await withRetry(() => MODEL_FETCHERS[model](query));
+    const { answer, businesses } = await extractWithClaude(query, raw);
+    const searchText = raw + " " + businesses.map(b => b.url ?? "").join(" ");
+    const { mentioned, position } = checkMentioned(searchText, domain);
 
     return {
       model,
       modelLabel: MODEL_LABELS[model],
       mentioned,
       position,
-      businesses: result.businesses,
-      sources: result.sources,
-      excerpt: result.answer.slice(0, 600),
-      rawResponse: result.raw.slice(0, 2000),
+      businesses,
+      sources: extractSources(raw),
+      excerpt: answer,
+      rawResponse: raw.slice(0, 2000),
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
