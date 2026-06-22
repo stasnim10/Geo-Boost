@@ -547,19 +547,29 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
         results: r.results.filter(m => modelsToTest.includes(m.model as "chatgpt" | "claude" | "gemini" | "perplexity")),
       }));
 
-      // Calculate aiCitationScore: % of (model × query) combinations where domain is mentioned
+      // Calculate aiCitationScore: position-weighted score across all (model × query) combinations
+      // Position 1 = 100 pts, position 2 = 50 pts, position 3 = 33 pts, etc. Not mentioned = 0 pts.
       const allModelResults = citationResults.flatMap(r => r.results);
-      const mentionedCount = allModelResults.filter(m => m.mentioned).length;
       const totalCount = allModelResults.length;
-      aiCitationScore = totalCount > 0 ? Math.round((mentionedCount / totalCount) * 100) : 0;
+      const weightedSum = allModelResults.reduce((sum, m) => {
+        if (!m.mentioned) return sum;
+        const pos = m.position && m.position > 0 ? m.position : 5;
+        return sum + (100 / pos);
+      }, 0);
+      aiCitationScore = totalCount > 0 ? Math.min(100, Math.round(weightedSum / totalCount)) : 0;
 
-      req.log.info({ url, aiCitationScore, mentionedCount, totalCount }, "Citation tests complete");
+      req.log.info({ url, aiCitationScore, totalCount }, "Citation tests complete");
     } catch (err) {
       logger.warn({ err }, "Citation tests failed — continuing without citation data");
     }
 
+    // Blend citation score into overall GEO score (70% Claude analysis, 30% live citation)
+    const blendedVisibilityScore = aiCitationScore !== null
+      ? Math.round(aiVisibilityScore * 0.7 + aiCitationScore * 0.3)
+      : aiVisibilityScore;
+
     const auditResponse = {
-      aiVisibilityScore,
+      aiVisibilityScore: blendedVisibilityScore,
       semanticDensityScore: Math.min(100, Math.max(0, auditData.semanticDensityScore)),
       structuralFormattingScore: Math.min(100, Math.max(0, auditData.structuralFormattingScore)),
       aiCitationScore,
@@ -1087,7 +1097,7 @@ router.post("/waitlist", async (req, res): Promise<void> => {
 
 // ─── share ────────────────────────────────────────────────────────────────────
 router.post("/geoboost/share", async (req, res): Promise<void> => {
-  const { url, category, aiVisibilityScore, semanticDensityScore, structuralFormattingScore, weaknesses, competitorPatterns } = req.body as {
+  const { url, category, aiVisibilityScore, semanticDensityScore, structuralFormattingScore, weaknesses, competitorPatterns, aiCitationScore, citationResults } = req.body as {
     url: string;
     category: string;
     aiVisibilityScore: number;
@@ -1095,6 +1105,8 @@ router.post("/geoboost/share", async (req, res): Promise<void> => {
     structuralFormattingScore: number;
     weaknesses: string[];
     competitorPatterns: string[];
+    aiCitationScore?: number | null;
+    citationResults?: unknown[] | null;
   };
 
   if (!url || !category || typeof aiVisibilityScore !== "number" || !Array.isArray(weaknesses) || !Array.isArray(competitorPatterns)) {
@@ -1111,6 +1123,8 @@ router.post("/geoboost/share", async (req, res): Promise<void> => {
       structuralFormattingScore,
       weaknesses,
       competitorPatterns,
+      aiCitationScore: typeof aiCitationScore === "number" ? aiCitationScore : null,
+      citationResults: Array.isArray(citationResults) ? (citationResults as NonNullable<(typeof sharedResultsTable.$inferSelect)["citationResults"]>) : null,
     }).returning({ token: sharedResultsTable.token });
 
     req.log.info({ token: row.token, url }, "Shared result created");

@@ -94,6 +94,7 @@ function ShareResultsSection({ result, category }: { result: AuditResult; catego
 
   const generate = async () => {
     setStatus("generating");
+    const extResult = result as AuditResult & { citationResults?: AuditCitationQueryResult[] | null; aiCitationScore?: number | null };
     try {
       const res = await fetch("/api/geoboost/share", {
         method: "POST",
@@ -106,6 +107,8 @@ function ShareResultsSection({ result, category }: { result: AuditResult; catego
           structuralFormattingScore: result.structuralFormattingScore,
           weaknesses: result.weaknesses,
           competitorPatterns: result.competitorPatterns,
+          aiCitationScore: extResult.aiCitationScore ?? null,
+          citationResults: extResult.citationResults ?? null,
         }),
       });
       const data = await res.json() as { token?: string; error?: string };
@@ -430,6 +433,11 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
   const colors = MODEL_COLORS[result.model] ?? MODEL_COLORS.chatgpt;
   const icon = MODEL_ICONS[result.model] ?? "🤖";
   const cleanDomain = domain.replace(/^www\./, "");
+  const competitorsAhead = result.businesses.filter(b => {
+    const rank = b.rank ?? 999;
+    const myPos = result.position ?? 999;
+    return rank < myPos && !b.name.toLowerCase().includes(cleanDomain);
+  });
 
   return (
     <div className={`rounded-xl border ${colors.border} ${colors.bg} p-4`}>
@@ -458,9 +466,36 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
           {result.excerpt && (
             <p className={`text-xs ${colors.text} leading-relaxed mb-3 line-clamp-3`}>"{result.excerpt}"</p>
           )}
-          {result.businesses.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Businesses Recommended</p>
+
+          {/* Competitors ranked ahead of you */}
+          {!result.mentioned && result.businesses.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Instead Recommended</p>
+              <div className="space-y-1">
+                {result.businesses.slice(0, 4).map((b, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <span className="text-xs font-bold w-4 text-center text-red-400">{b.rank}.</span>
+                    <span className="text-xs text-slate-600">{b.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.mentioned && competitorsAhead.length > 0 && (
+            <div className="mb-3 bg-amber-50 rounded-lg p-2 border border-amber-100">
+              <p className="text-xs font-semibold text-amber-700 mb-1">Competitors ranked ahead of you:</p>
+              <div className="space-y-0.5">
+                {competitorsAhead.slice(0, 3).map((b, i) => (
+                  <p key={i} className="text-xs text-amber-800">{b.rank}. {b.name}</p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {result.businesses.length > 0 && result.mentioned && (
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">All Recommendations</p>
               <div className="space-y-1">
                 {result.businesses.slice(0, 5).map((b, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -468,14 +503,35 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
                       {b.rank}.
                     </span>
                     <span className={`text-xs ${b.name.toLowerCase().includes(cleanDomain) ? "font-bold text-green-700" : "text-slate-600"}`}>
-                      {b.name}
-                      {b.name.toLowerCase().includes(cleanDomain) && " ✓"}
+                      {b.name}{b.name.toLowerCase().includes(cleanDomain) && " ✓"}
                     </span>
                   </div>
                 ))}
               </div>
             </div>
           )}
+
+          {/* Cited source URLs */}
+          {result.sources.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Sources Used</p>
+              <div className="space-y-0.5">
+                {result.sources.slice(0, 3).map((src, i) => {
+                  let hostname = src;
+                  try { hostname = new URL(src).hostname.replace(/^www\./, ""); } catch { /* keep */ }
+                  return (
+                    <a key={i} href={src} target="_blank" rel="noopener noreferrer"
+                      className={`flex items-center gap-1 text-xs hover:underline truncate max-w-full ${src.includes(cleanDomain) ? "text-green-600 font-semibold" : "text-slate-400"}`}
+                    >
+                      <Link2 className="w-3 h-3 flex-shrink-0" />
+                      <span className="truncate">{hostname}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {result.businesses.length === 0 && !result.mentioned && (
             <p className="text-xs text-slate-400 italic">No specific businesses were recommended for this query.</p>
           )}
@@ -499,32 +555,26 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
           <h2 className="text-white font-bold text-lg">Live AI Citation Test</h2>
         </div>
         <div className="bg-slate-50 px-6 py-8 text-center">
-          {isPaidPlan ? (
-            <>
-              <p className="text-slate-500 text-sm mb-2">Citation test data unavailable for this audit.</p>
-              <p className="text-slate-400 text-xs">Run a new audit to see live citation results.</p>
-            </>
-          ) : (
-            <>
-              <Lock className="w-8 h-8 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-700 font-semibold text-sm mb-1">Live Citation Testing Included on Monitor & Grow</p>
-              <p className="text-slate-500 text-xs mb-4 max-w-md mx-auto">
-                Upgrade to see exactly which queries each AI model cited you for, and which competitors they recommended instead.
-              </p>
-              <Link href="/pricing">
-                <button style={{ backgroundColor: "#10B981" }} className="px-5 py-2.5 text-white text-sm font-bold rounded-lg hover:opacity-90 transition-opacity">
-                  Upgrade to See Full Citation Data
-                </button>
-              </Link>
-            </>
-          )}
+          <Lock className="w-8 h-8 text-slate-300 mx-auto mb-3" />
+          <p className="text-slate-700 font-semibold text-sm mb-1">Live Citation Testing Included on Monitor & Grow</p>
+          <p className="text-slate-500 text-xs mb-4 max-w-md mx-auto">
+            Upgrade to see exactly which queries each AI model cited you for, and which competitors they recommended instead.
+          </p>
+          <Link href="/pricing">
+            <button style={{ backgroundColor: "#10B981" }} className="px-5 py-2.5 text-white text-sm font-bold rounded-lg hover:opacity-90 transition-opacity">
+              Upgrade to See Full Citation Data
+            </button>
+          </Link>
         </div>
       </div>
     );
   }
 
-  const totalTests = citationResults.flatMap(r => r.results).length;
-  const mentionedTests = citationResults.flatMap(r => r.results).filter(r => r.mentioned).length;
+  const allResults = citationResults.flatMap(r => r.results);
+  const totalTests = allResults.length;
+  const mentionedTests = allResults.filter(r => r.mentioned).length;
+  // Free plan: only Claude ran — show upsell for remaining 3 models
+  const isClaudeOnly = !isPaidPlan && citationResults[0]?.results.length === 1 && citationResults[0]?.results[0]?.model === "claude";
 
   return (
     <div className="mb-8 rounded-2xl overflow-hidden border border-slate-200">
@@ -537,12 +587,12 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
           </div>
         </div>
         {aiCitationScore !== null && aiCitationScore !== undefined && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="text-center">
               <div className={`text-2xl font-extrabold ${aiCitationScore >= 50 ? "text-green-400" : aiCitationScore >= 25 ? "text-amber-400" : "text-red-400"}`}>
                 {aiCitationScore}%
               </div>
-              <div className="text-slate-400 text-xs">Citation Rate</div>
+              <div className="text-slate-400 text-xs">Citation Score</div>
             </div>
             <div className="text-center">
               <div className="text-2xl font-extrabold text-white">{mentionedTests}/{totalTests}</div>
@@ -562,17 +612,44 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
               <div>
                 <p className="text-sm font-bold text-slate-800">"{queryResult.query}"</p>
                 <p className="text-xs text-slate-400 mt-0.5">
-                  Cited in {queryResult.results.filter(r => r.mentioned).length}/{queryResult.results.length} models
+                  Cited in {queryResult.results.filter(r => r.mentioned).length}/{queryResult.results.length} model{queryResult.results.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
-            <div className={`grid gap-3 ${queryResult.results.length === 1 ? "grid-cols-1" : queryResult.results.length === 2 ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
+            <div className={`grid gap-3 ${queryResult.results.length === 1 ? "grid-cols-1 max-w-sm" : queryResult.results.length === 2 ? "grid-cols-2" : "grid-cols-1 sm:grid-cols-2"}`}>
               {queryResult.results.map((modelResult, mi) => (
                 <CitationModelCard key={mi} result={modelResult} domain={domain} />
               ))}
             </div>
           </div>
         ))}
+
+        {/* Free-plan upsell: show teaser for the 3 locked models */}
+        {isClaudeOnly && (
+          <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-5">
+            <div className="flex items-start gap-4">
+              <Lock className="w-5 h-5 text-slate-300 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-slate-700 mb-1">3 More Models Tested on Monitor & Grow</p>
+                <p className="text-xs text-slate-500 mb-3">
+                  You're seeing Claude results only. Upgrade to also test ChatGPT, Gemini, and Perplexity — the 3 models your customers actually use most.
+                </p>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {["🤖 ChatGPT", "✨ Gemini", "🔍 Perplexity"].map(label => (
+                    <span key={label} className="text-xs font-semibold bg-white border border-slate-200 text-slate-500 px-3 py-1 rounded-full">
+                      <Lock className="w-2.5 h-2.5 inline mr-1" />{label}
+                    </span>
+                  ))}
+                </div>
+                <Link href="/pricing">
+                  <button style={{ backgroundColor: "#10B981" }} className="px-4 py-2 text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity">
+                    Unlock All 4 Models — Upgrade Now
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

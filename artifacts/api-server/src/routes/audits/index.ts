@@ -378,8 +378,10 @@ router.get("/audits/shared/:token", async (req: Request, res: Response): Promise
       aiVisibilityScore: row.aiVisibilityScore,
       semanticDensityScore: row.semanticDensityScore,
       structuralFormattingScore: row.structuralFormattingScore,
+      aiCitationScore: row.aiCitationScore ?? null,
       weaknesses: row.weaknesses,
       competitorPatterns: row.competitorPatterns,
+      citationResults: row.citationResults ?? null,
       createdAt: row.createdAt,
     });
   } catch (err) {
