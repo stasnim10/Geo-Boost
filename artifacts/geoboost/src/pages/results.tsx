@@ -400,12 +400,12 @@ function WhyScoringLowModal({ result, category, onClose }: { result: AuditResult
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
             <Link href="/fix" className="flex-1">
               <button className="w-full py-3 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-colors">
-                Get It Fixed — $49 One-Time
+                ⚡ Quick Fix Files — $49 One-Time
               </button>
             </Link>
-            <Link href="/optimizer" className="flex-1">
+            <Link href="/pricing" className="flex-1">
               <button className="w-full py-3 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-colors">
-                Fix It Yourself — Free Tool
+                🚀 Full Plan — $149/mo
               </button>
             </Link>
           </div>
@@ -920,10 +920,17 @@ export default function Results() {
 
           <div className="bg-white rounded-xl border border-red-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-slate-700 text-sm">
-              <strong>Show me on AI costs $149/month.</strong> If it recovers even one lost customer per month,
+              <strong>Full ongoing optimization costs $149/month.</strong> If it recovers even one lost customer per month,
               it pays for itself. At average performance, customers see 3–6x ROI within 60 days.
             </p>
-            <CtaButton label="Fix This Now — $149/mo" className="flex-shrink-0 px-6 py-3 text-sm whitespace-nowrap" />
+            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+              <CtaButton label="Start Full Plan — $149/mo" className="px-6 py-3 text-sm whitespace-nowrap" />
+              <Link href="/fix">
+                <span className="text-xs text-slate-400 hover:text-slate-600 underline cursor-pointer whitespace-nowrap">
+                  or get the $49 quick-fix files
+                </span>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -965,9 +972,14 @@ export default function Results() {
       <div className="mt-8 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-bold uppercase tracking-widest bg-white/15 text-slate-300 px-2.5 py-1 rounded-full">
+                ⚡ Quick Fix · One-time $49
+              </span>
+            </div>
             <h2 className="text-xl font-extrabold mb-1">Get Your Complete Fix Package</h2>
             <p className="text-slate-400 text-sm max-w-lg">
-              Schema markup, Google Business Profile copy, social media bios, and a full content brief — generated for <strong className="text-white">{result.scrapedUrl}</strong> in minutes.
+              Done-for-you files: schema markup, Google Business Profile copy, social media bios, and a full content brief — generated for <strong className="text-white">{result.scrapedUrl}</strong> in minutes. Apply them yourself, once.
             </p>
             <div className="flex flex-wrap gap-3 mt-4">
               {[
@@ -999,9 +1011,14 @@ export default function Results() {
 
       {/* Bottom CTA */}
       <div className="mt-8 bg-[#0f172a] rounded-2xl p-8 text-center text-white">
+        <div className="flex justify-center mb-3">
+          <span className="text-xs font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-3 py-1 rounded-full">
+            🚀 Full Solution · $149/month subscription
+          </span>
+        </div>
         <h2 className="text-2xl font-extrabold mb-2">Stop losing {formatMoney(roi.amount)}/month to competitors</h2>
         <p className="text-slate-400 mb-6 max-w-xl mx-auto">
-          Show me on AI rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking.
+          Show me on AI rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking. Ongoing monitoring included.
         </p>
         <CtaButton label="Optimize My Content — $149/month" className="px-10 py-4 text-lg mx-auto" />
         <div className="mt-4">
