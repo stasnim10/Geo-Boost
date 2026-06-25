@@ -240,6 +240,15 @@ function AuditCard({
           )}
           {shareStatus === "ready" && (
             <div>
+              <p className="text-xs font-semibold text-slate-600 mb-2">Preview — how it will look when shared</p>
+              <div className="mb-3 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+                <img
+                  src={`${shareUrl}/og-image`}
+                  alt="Social card preview"
+                  className="w-full block"
+                  style={{ aspectRatio: "1200/630", objectFit: "cover" }}
+                />
+              </div>
               <label className="block text-xs font-semibold text-slate-600 mb-2">Shareable link — no sign-in needed to view</label>
               <div className="flex gap-2">
                 <input

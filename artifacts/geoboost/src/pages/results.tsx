@@ -172,6 +172,15 @@ function ShareResultsSection({ result, category }: { result: AuditResult; catego
 
       {status === "ready" && (
         <div className="px-6 pb-5 border-t border-slate-100 pt-4">
+          <p className="text-xs font-semibold text-slate-600 mb-3">Preview — how it will look when shared</p>
+          <div className="mb-4 rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
+            <img
+              src={`${shareUrl}/og-image`}
+              alt="Social card preview"
+              className="w-full block"
+              style={{ aspectRatio: "1200/630", objectFit: "cover" }}
+            />
+          </div>
           <label className="block text-xs font-semibold text-slate-600 mb-2">Shareable link</label>
           <div className="flex gap-2">
             <input
