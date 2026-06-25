@@ -26,10 +26,10 @@ const queryClient = new QueryClient();
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-// In dev use the key directly; in prod map from hostname for custom domain support.
-const clerkPubKey = import.meta.env.DEV
-  ? import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
-  : publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+const clerkPubKey = publishableKeyFromHost(
+  window.location.hostname,
+  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
+);
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL || undefined;
 

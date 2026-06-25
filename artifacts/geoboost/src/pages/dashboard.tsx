@@ -828,6 +828,43 @@ function planLabel(plan: string): string {
   }
 }
 
+function PastDueBanner({ onManageBilling }: { onManageBilling: () => Promise<void> }) {
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = async () => {
+    setLoading(true);
+    try {
+      await onManageBilling();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mb-6 flex items-start gap-3 px-5 py-4 bg-red-50 border border-red-200 rounded-xl">
+      <div className="flex-shrink-0 mt-0.5">
+        <svg className="w-5 h-5 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-red-800">Payment failed — action needed</p>
+        <p className="text-xs text-red-600 mt-0.5">
+          Your last renewal could not be processed. Update your payment method to avoid losing access.
+        </p>
+      </div>
+      <button
+        onClick={handleClick}
+        disabled={loading}
+        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed whitespace-nowrap"
+      >
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <CreditCard className="w-3 h-3" />}
+        Fix payment
+      </button>
+    </div>
+  );
+}
+
 function BillingCard({ sub, onManageBilling }: { sub: Subscription; onManageBilling: () => void; }) {
   const [portalLoading, setPortalLoading] = useState(false);
   const [portalError, setPortalError] = useState("");
@@ -979,6 +1016,17 @@ export default function Dashboard() {
           </button>
         </Link>
       </div>
+
+      {/* Past-due warning banner */}
+      {sub?.status === "past_due" && (
+        <PastDueBanner onManageBilling={async () => {
+          try {
+            const res = await fetch("/api/stripe/portal", { method: "POST", credentials: "include" });
+            const data = await res.json() as { url?: string };
+            if (res.ok && data.url) window.open(data.url, "_blank");
+          } catch { /* ignore */ }
+        }} />
+      )}
 
       {/* Billing strip */}
       {sub && (
