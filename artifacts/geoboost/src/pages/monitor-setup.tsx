@@ -109,7 +109,7 @@ export default function MonitorSetup() {
         </div>
         <h1 className="text-2xl font-extrabold text-slate-900 mb-3">Monitor is a paid feature</h1>
         <p className="text-slate-500 mb-2 leading-relaxed">
-          Weekly AI visibility re-audits, 5 tracked queries, and a Monday morning email report are available on the <strong>Monitor plan</strong> ($29/month) or the <strong>Grow plan</strong> ($99/month).
+          Weekly AI visibility re-audits, 5 tracked queries, and a Monday morning email report are available on the <strong>Monitor plan</strong> ($49/month) or the <strong>Grow plan</strong> ($149/month).
         </p>
         <p className="text-sm text-slate-400 mb-8">You're currently on the free plan.</p>
         <Link href="/pricing?plan=monitor">

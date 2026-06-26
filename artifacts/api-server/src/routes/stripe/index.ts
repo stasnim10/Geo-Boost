@@ -84,10 +84,10 @@ router.post("/create-monitor-checkout", async (req, res): Promise<void> => {
             currency: "usd",
             recurring: { interval: "month" },
             product_data: {
-              name: "GEOboost Monitor",
+              name: "Show me on AI — Monitor",
               description: "Weekly AI visibility re-audits, 5 tracked queries, email reports every Monday.",
             },
-            unit_amount: 2900,
+            unit_amount: 4900,
           },
           quantity: 1,
         },
@@ -117,6 +117,53 @@ router.post("/create-monitor-checkout", async (req, res): Promise<void> => {
   }
 });
 
+router.post("/create-monitor-annual-checkout", async (req, res): Promise<void> => {
+  try {
+    const stripe = getStripe();
+    const base = getBaseUrl();
+    const clerkUserId = getAuth(req)?.userId ?? null;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            recurring: { interval: "year" },
+            product_data: {
+              name: "Show me on AI — Monitor (Annual)",
+              description: "Weekly AI visibility re-audits, 5 tracked queries, email reports. Billed annually — save 20%.",
+            },
+            unit_amount: 46800,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        ...(clerkUserId ? { clerkUserId } : {}),
+        plan: "monitor",
+      },
+      success_url: `${base}/monitor-setup?checkout=success`,
+      cancel_url: `${base}/pricing`,
+      allow_promotion_codes: true,
+    });
+
+    if (!session.url) {
+      res.status(500).json({ error: "Stripe did not return a session URL" });
+      return;
+    }
+
+    logger.info({ sessionId: session.id }, "Monitor annual checkout session created");
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err }, "Failed to create Monitor annual checkout session");
+    res.status(500).json({
+      error: "Could not create checkout session",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+});
+
 router.post("/create-grow-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
@@ -131,10 +178,10 @@ router.post("/create-grow-checkout", async (req, res): Promise<void> => {
             currency: "usd",
             recurring: { interval: "month" },
             product_data: {
-              name: "GEOboost Grow",
+              name: "Show me on AI — Grow",
               description: "3 domains, 20 tracked queries, competitor tracking, monthly PDF report.",
             },
-            unit_amount: 9900,
+            unit_amount: 14900,
           },
           quantity: 1,
         },
@@ -157,6 +204,53 @@ router.post("/create-grow-checkout", async (req, res): Promise<void> => {
     res.json({ url: session.url });
   } catch (err) {
     logger.error({ err }, "Failed to create Grow checkout session");
+    res.status(500).json({
+      error: "Could not create checkout session",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
+  }
+});
+
+router.post("/create-grow-annual-checkout", async (req, res): Promise<void> => {
+  try {
+    const stripe = getStripe();
+    const base = getBaseUrl();
+    const clerkUserId = getAuth(req)?.userId ?? null;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            recurring: { interval: "year" },
+            product_data: {
+              name: "Show me on AI — Grow (Annual)",
+              description: "3 domains, 20 tracked queries, competitor tracking, monthly PDF report. Billed annually — save 20%.",
+            },
+            unit_amount: 142800,
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        ...(clerkUserId ? { clerkUserId } : {}),
+        plan: "grow",
+      },
+      success_url: `${base}/monitor-setup?checkout=success`,
+      cancel_url: `${base}/pricing`,
+      allow_promotion_codes: true,
+    });
+
+    if (!session.url) {
+      res.status(500).json({ error: "Stripe did not return a session URL" });
+      return;
+    }
+
+    logger.info({ sessionId: session.id }, "Grow annual checkout session created");
+    res.json({ url: session.url });
+  } catch (err) {
+    logger.error({ err }, "Failed to create Grow annual checkout session");
     res.status(500).json({
       error: "Could not create checkout session",
       details: err instanceof Error ? err.message : "Unknown error",

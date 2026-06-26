@@ -776,7 +776,7 @@ function GrowUpsellPanel({ isGrow }: { isGrow: boolean }) {
         </div>
         <Link href="/pricing?plan=grow">
           <button className="flex-shrink-0 px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors whitespace-nowrap">
-            Upgrade — $99/mo
+            Upgrade — $149/mo
           </button>
         </Link>
       </div>
@@ -790,7 +790,7 @@ function GrowUpsellPanel({ isGrow }: { isGrow: boolean }) {
             <p className="text-xs text-slate-500 max-w-xs">See how often AI recommends your top 3 competitors vs. you — and exactly why they're winning.</p>
             <Link href="/pricing?plan=grow">
               <button style={{ backgroundColor: "#22c55e" }} className="mt-4 px-6 py-2 text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity">
-                Upgrade to Grow — $99/month →
+                Upgrade to Grow — $149/month →
               </button>
             </Link>
           </div>
@@ -947,7 +947,7 @@ function MonitorUpgradePrompt() {
       </div>
       <h2 className="text-xl font-bold text-slate-900 mb-2">Monitor requires a paid plan</h2>
       <p className="text-slate-500 mb-6 max-w-sm mx-auto text-sm">
-        Weekly AI visibility re-audits and 5 tracked queries are available on the Monitor ($29/mo) or Grow ($99/mo) plan.
+        Weekly AI visibility re-audits and 5 tracked queries are available on the Monitor ($49/mo) or Grow ($149/mo) plan.
       </p>
       <Link href="/pricing?plan=monitor">
         <button style={{ backgroundColor: "#22c55e" }} className="inline-flex items-center gap-2 px-8 py-3 text-white font-bold rounded-lg hover:opacity-90 transition-opacity text-sm">
