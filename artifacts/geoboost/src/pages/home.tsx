@@ -8,7 +8,7 @@ import { ShieldAlert, Crosshair, Search, Loader2, Sparkles, MapPin, LocateFixed 
 import SimulatorSection from "@/components/SimulatorSection";
 
 // ─── Query suggestions per category ─────────────────────────────────────────
-const QUERY_SUGGESTIONS: Record<string, string[]> = {
+export const QUERY_SUGGESTIONS: Record<string, string[]> = {
   "Coffee Shop / Café": [
     "best coffee shops in [city]",
     "coffee shops with WiFi near me",

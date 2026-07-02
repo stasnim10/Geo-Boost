@@ -3,7 +3,10 @@ import { Link, useLocation } from "wouter";
 import { Show, useUser } from "@clerk/react";
 import { Gauge } from "@/components/gauge";
 import { AuditResult, AuditCitationQueryResult } from "@workspace/api-client-react";
-import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check, ShieldAlert, ShieldCheck, Bot, ChevronRight, HelpCircle, Search, Lock } from "lucide-react";
+import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check, ShieldAlert, ShieldCheck, Bot, ChevronRight, HelpCircle, Search, Lock, Pencil } from "lucide-react";
+import { QUERY_SUGGESTIONS } from "./home";
+
+const CATEGORY_LIST = Object.keys(QUERY_SUGGESTIONS).sort();
 
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
@@ -764,6 +767,7 @@ export default function Results() {
   const [, setLocation] = useLocation();
   const [result, setResult] = useState<AuditResult | null>(null);
   const [category, setCategory] = useState("your industry");
+  const [editingCategory, setEditingCategory] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -790,6 +794,10 @@ export default function Results() {
   const aiCitationScore = (result as AuditResult & { aiCitationScore?: number | null }).aiCitationScore;
   const invisibilityRate = 100 - result.aiVisibilityScore;
   const roi = estimateMonthlyLoss(result.aiVisibilityScore, category);
+  const categoryQueries = QUERY_SUGGESTIONS[category] ?? [];
+  const allCitationResults = citationResults ? citationResults.flatMap(r => r.results) : [];
+  const citationMentioned = allCitationResults.filter(r => r.mentioned).length;
+  const citationTotal = allCitationResults.length;
   const domain = (() => {
     try { return new URL(result.scrapedUrl.startsWith("http") ? result.scrapedUrl : `https://${result.scrapedUrl}`).hostname.replace(/^www\./, ""); }
     catch { return result.scrapedUrl; }
@@ -807,11 +815,58 @@ export default function Results() {
         {!bannerDismissed && <SaveResultsBanner onDismiss={() => setBannerDismissed(true)} />}
       </Show>
 
-      <div className="mb-6 text-center">
+      <div className="mb-4 text-center">
         <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">
           Here is what we found for <span className="text-blue-600">{result.scrapedUrl}</span>
         </h1>
-        <p className="text-slate-500 mt-2 text-lg">AI assistants are recommending your competitors instead of you.</p>
+      </div>
+
+      {/* Top-of-page verdict */}
+      <div className="mb-6 text-center">
+        {citationTotal > 0 ? (
+          <p className="text-2xl font-extrabold text-slate-900">
+            AI mentioned you in{" "}
+            <span className={citationMentioned >= Math.ceil(citationTotal / 2) ? "text-green-600" : "text-red-600"}>
+              {citationMentioned} out of {citationTotal}
+            </span>{" "}
+            searches we ran.
+          </p>
+        ) : result.aiVisibilityScore >= 70 ? (
+          <p className="text-2xl font-extrabold text-slate-900">Your business shows up well — AI can find you for most searches in your category.</p>
+        ) : result.aiVisibilityScore >= 40 ? (
+          <p className="text-2xl font-extrabold text-slate-900">AI finds you sometimes, but you're missing most searches in your category.</p>
+        ) : (
+          <p className="text-2xl font-extrabold text-slate-900">AI assistants are currently skipping your business in most searches.</p>
+        )}
+      </div>
+
+      {/* Category badge with inline edit */}
+      <div className="mb-8 flex items-center justify-center gap-2 flex-wrap">
+        <span className="text-sm text-slate-500">Business type:</span>
+        {editingCategory ? (
+          <select
+            value={category}
+            onChange={e => { setCategory(e.target.value); setEditingCategory(false); }}
+            onBlur={() => setEditingCategory(false)}
+            autoFocus
+            className="text-sm font-semibold border border-blue-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            {CATEGORY_LIST.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+        ) : (
+          <button
+            onClick={() => setEditingCategory(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition-colors"
+          >
+            {category}
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
+        {category !== "your industry" && (
+          <span className="text-xs text-slate-400">— tap the label to correct it</span>
+        )}
       </div>
 
       {/* Plain-English intro card */}
@@ -860,15 +915,15 @@ export default function Results() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
-          <h3 className="font-semibold text-slate-700 mb-4">Content Usefulness</h3>
+          <h3 className="font-semibold text-slate-700 mb-4">Content Depth</h3>
           <Gauge value={result.semanticDensityScore} size={120} strokeWidth={10} />
-          <p className="text-xs text-slate-500 text-center mt-4">How much helpful, specific information AI can find on your page</p>
+          <p className="text-xs text-slate-500 text-center mt-4">How well your page answers the questions AI gets asked about your business</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
-          <h3 className="font-semibold text-slate-700 mb-4">AI Readability</h3>
+          <h3 className="font-semibold text-slate-700 mb-4">Page Readability</h3>
           <Gauge value={result.structuralFormattingScore} size={120} strokeWidth={10} />
-          <p className="text-xs text-slate-500 text-center mt-4">How easily AI can read and understand your website</p>
+          <p className="text-xs text-slate-500 text-center mt-4">How easily AI can scan and understand your page layout</p>
         </div>
 
         <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
@@ -891,24 +946,35 @@ export default function Results() {
         isPaidPlan={isPaidPlan}
       />
 
-      {/* What This Is Costing You */}
+      {/* What Customers Ask AI */}
+      {categoryQueries.length > 0 && (
+        <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6">
+          <h2 className="text-lg font-bold text-slate-900 mb-1">What Customers Ask AI About {category} Businesses</h2>
+          <p className="text-sm text-slate-500 mb-4">These are the searches AI assistants get asked in your category. Your business needs to show up in these answers.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {categoryQueries.slice(0, 6).map((q, i) => (
+              <div key={i} className="flex items-start gap-2 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
+                <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-slate-700">{q.replace(/\[city\]/gi, "your city")}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* What You Could Be Missing Each Month */}
       <div className="mb-8 rounded-2xl overflow-hidden border border-red-200">
         <div className="bg-red-600 px-6 py-4 flex items-center gap-3">
           <DollarSign className="w-5 h-5 text-white flex-shrink-0" />
-          <h2 className="text-white font-bold text-lg">What This Is Costing You</h2>
+          <h2 className="text-white font-bold text-lg">What You Could Be Missing Each Month</h2>
         </div>
         <div className="bg-red-50 p-6 md:p-8">
-          <p className="text-red-900 text-base leading-relaxed mb-4">
-            Based on your AI Visibility Score of <strong>{result.aiVisibilityScore}/100</strong>, AI assistants
-            are recommending competitors over you approximately{" "}
-            <strong>{invisibilityRate}% of the time</strong>. For a business in the{" "}
-            <strong>{category}</strong> category, this invisibility typically costs an estimated{" "}
-            <strong className="text-red-700 text-lg">{formatMoney(roi.amount)}/month</strong> in revenue
-            going directly to competitors who rank higher in AI answers.
-          </p>
-          <p className="text-red-800 text-sm leading-relaxed mb-6 bg-red-100 rounded-lg px-4 py-3 border border-red-200">
-            💡 <strong>Here's the opportunity:</strong> For searches in the <strong>{category}</strong> category, AI typically recommends <strong>5 different businesses</strong> per answer — not just one winner. Right now you're not one of them. Show me on AI helps you claim one of those citation spots before your competitors do.
-          </p>
+          {/* Hero dollar figure */}
+          <div className="text-center mb-6">
+            <div className="text-5xl font-extrabold text-red-700 mb-2">{formatMoney(roi.amount)}</div>
+            <p className="text-sm text-red-800 font-medium">estimated monthly revenue going to competitors instead of you</p>
+            <p className="text-xs text-slate-500 mt-1">Based on typical search volume for {category} businesses</p>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
@@ -919,18 +985,21 @@ export default function Results() {
               <div className="text-2xl font-extrabold text-red-600">
                 {Math.round(roi.monthlyQueries * (1 - result.aiVisibilityScore / 100)).toLocaleString()}
               </div>
-              <div className="text-xs text-slate-500 mt-1">Searches where competitors beat you</div>
+              <div className="text-xs text-slate-500 mt-1">Searches where a competitor is recommended instead</div>
             </div>
             <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
-              <div className="text-2xl font-extrabold text-red-700">{formatMoney(roi.amount)}</div>
-              <div className="text-xs text-slate-500 mt-1">Estimated monthly revenue lost</div>
+              <div className="text-2xl font-extrabold text-red-700">{invisibilityRate}%</div>
+              <div className="text-xs text-slate-500 mt-1">Of AI searches where your competitors beat you</div>
             </div>
           </div>
 
+          <p className="text-red-800 text-sm leading-relaxed mb-6 bg-red-100 rounded-lg px-4 py-3 border border-red-200">
+            💡 AI typically recommends <strong>5 different businesses</strong> per answer in your category — not just one winner. Right now you're not one of them. Show me on AI helps you claim one of those spots before your competitors do.
+          </p>
+
           <div className="bg-white rounded-xl border border-red-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-slate-700 text-sm">
-              <strong>Full ongoing optimization costs $149/month.</strong> If it recovers even one lost customer per month,
-              it pays for itself. At average performance, customers see 3–6x ROI within 60 days.
+              <strong>Full ongoing optimization costs $149/month.</strong> If it recovers even one customer per month it pays for itself — most businesses see results within 2–4 weeks.
             </p>
             <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
               <CtaButton label="Start Full Plan — $149/mo" className="px-6 py-3 text-sm whitespace-nowrap" />
@@ -949,7 +1018,7 @@ export default function Results() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-5 h-5 text-red-500" />
-            <h3 className="text-xl font-bold text-slate-900">Why AI Is Skipping Your Business</h3>
+            <h3 className="text-xl font-bold text-slate-900">What's Holding You Back</h3>
           </div>
           {result.weaknesses.map((weakness, i) => (
             <div key={i} className="bg-red-50 rounded-lg border border-red-100 p-4 flex gap-3">
@@ -964,7 +1033,7 @@ export default function Results() {
         <div className="space-y-4">
           <div className="flex items-center gap-2 mb-2">
             <TrendingUp className="w-5 h-5 text-blue-500" />
-            <h3 className="text-xl font-bold text-slate-900">What Top-Ranked Competitors Do That You Don't</h3>
+            <h3 className="text-xl font-bold text-slate-900">What High-Ranking Businesses Do Differently</h3>
           </div>
           {result.competitorPatterns.map((pattern, i) => (
             <div key={i} className="bg-blue-50 rounded-lg border border-blue-100 p-4 flex gap-3">
