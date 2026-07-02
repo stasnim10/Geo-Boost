@@ -460,13 +460,19 @@ Be brutally honest. Most small business websites score 10-35. A score above 70 i
 ${locationContext}
 ${structuralContext}
 
+IMPORTANT — language rules for weaknesses and competitorPatterns:
+- Write every weakness as a complete plain-English sentence a non-technical business owner can understand immediately.
+- Never use technical jargon (no "semantic density", "structured data", "schema markup", "crawlability", "indexability").
+- Each weakness must explain the real-world impact. Bad: "Low list count." Good: "Your page has almost no bullet points, so AI skips over it when scanning for quick facts to share."
+- Each competitorPattern must describe what competing businesses do in plain language. Bad: "Structured FAQ schema." Good: "They have a clear Q&A section that directly answers common customer questions."
+
 Return valid JSON:
 {
   "aiVisibilityScore": <0-100>,
   "semanticDensityScore": <0-100>,
   "structuralFormattingScore": <0-100>,
-  "weaknesses": ["<specific weakness referencing actual content>", ...3 items],
-  "competitorPatterns": ["<pattern top-cited competitors use>", ...3 items]
+  "weaknesses": ["<plain-English sentence a business owner can act on, referencing specific content on their page>", ...3 items],
+  "competitorPatterns": ["<plain-English sentence describing what top-ranked businesses do differently>", ...3 items]
 }`;
 
   const userPrompt = `Audit this website for AI visibility.

@@ -8,6 +8,30 @@ import { QUERY_SUGGESTIONS } from "./home";
 
 const CATEGORY_LIST = Object.keys(QUERY_SUGGESTIONS).sort();
 
+const TECHNICAL_PHRASE_MAP: [RegExp, string][] = [
+  [/low semantic density/i, "Your page doesn't have enough specific, helpful information for AI to share with customers."],
+  [/semantic density/i, "Your page needs more specific details — AI prefers pages that directly answer customer questions."],
+  [/structural formatting/i, "Your page is hard for AI to scan — break content into short sections with headings and bullet points."],
+  [/lack(?:ing)? (?:of )?(?:structured|clear) (?:data|content|format)/i, "Your page uses long paragraphs — AI systems prefer bullet points and short sections it can quickly scan."],
+  [/(?:missing|no|lacks?) (?:schema|structured data|json-?ld)/i, "Your page is missing behind-the-scenes labels that help AI identify key facts about your business."],
+  [/(?:low|poor|insufficient) list count/i, "Your page has almost no bullet points or lists, so AI skips over it when looking for quick facts to share."],
+  [/(?:no|missing|lacks?) (?:faq|q&a|question)/i, "There's no Q&A section where AI can find direct answers to common customer questions."],
+  [/(?:no|missing|lacks?) (?:concise|short) answer/i, "Your content doesn't have short, direct answers — AI prefers pages that get straight to the point."],
+  [/vague (?:marketing )?(?:language|copy|content)/i, "Your page is full of marketing language but short on specific facts — AI needs concrete details to recommend you."],
+  [/crawl(?:ability|able)/i, "Some of your page content may be invisible to AI because it can't read certain types of web elements."],
+  [/indexab(?:le|ility)/i, "Parts of your website may not be visible to AI search engines."],
+  [/content (?:quality|depth|richness)/i, "Your page needs more detailed, specific information that directly answers what customers are looking for."],
+];
+
+function toPlainEnglish(text: string): string {
+  for (const [pattern, replacement] of TECHNICAL_PHRASE_MAP) {
+    if (pattern.test(text)) return replacement;
+  }
+  if (text.length < 40 && !text.includes(" ")) return text;
+  if (!text.endsWith(".") && !text.endsWith("!") && !text.endsWith("?")) return text + ".";
+  return text;
+}
+
 function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
   const cat = category.toLowerCase();
 
@@ -393,7 +417,7 @@ function WhyScoringLowModal({ result, category, onClose }: { result: AuditResult
                 {result.weaknesses.map((w, i) => (
                   <div key={i} className="flex gap-3 items-start">
                     <div className="w-5 h-5 rounded-full bg-red-100 text-red-600 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
-                    <p className="text-sm text-slate-700 leading-relaxed">{w}</p>
+                    <p className="text-sm text-slate-700 leading-relaxed">{toPlainEnglish(w)}</p>
                   </div>
                 ))}
               </div>
@@ -1025,7 +1049,7 @@ export default function Results() {
               <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 text-sm font-bold">
                 {i + 1}
               </div>
-              <p className="text-red-900 text-sm">{weakness}</p>
+              <p className="text-red-900 text-sm">{toPlainEnglish(weakness)}</p>
             </div>
           ))}
         </div>
@@ -1040,7 +1064,7 @@ export default function Results() {
               <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                 <Zap className="w-3 h-3" />
               </div>
-              <p className="text-blue-900 text-sm">{pattern}</p>
+              <p className="text-blue-900 text-sm">{toPlainEnglish(pattern)}</p>
             </div>
           ))}
         </div>
