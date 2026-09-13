@@ -433,7 +433,10 @@ async function sendWelcomeEmail(params: {
 // ─── audit ────────────────────────────────────────────────────────────────────
 router.post("/geoboost/audit", async (req, res): Promise<void> => {
   const parsed = RunAuditBody.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
+  if (!parsed.success) {
+    res.status(400).json({ code: "INVALID_INPUT", error: parsed.error.message });
+    return;
+  }
 
   const { url, category, queries, name = "", email = "", location } = parsed.data;
   req.log.info({ url, category, location, name, email }, "Starting audit");
@@ -503,6 +506,7 @@ router.post("/geoboost/audit", async (req, res): Promise<void> => {
 
   if (scrapeResult.partial || !scrapedContent || scrapedContent.length < 50) {
     res.status(400).json({
+      code: "SITE_UNREACHABLE",
       error: "Could not access website",
       details: scrapeResult.partial
         ? "The site blocked our request or is not publicly accessible. Please check the URL and try again."
@@ -549,9 +553,7 @@ Return valid JSON:
 Business URL: ${url}
 Business Category: ${category}${location ? `\nBusiness Location: ${location}` : ""}
 Target AI queries:
-1. "${queries[0]}"
-2. "${queries[1]}"
-3. "${queries[2]}"
+${queries.map((q, i) => `${i + 1}. "${q}"`).join("\n")}
 
 Scraped page content:
 ---
@@ -719,7 +721,11 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
     res.json(auditResponse);
   } catch (err) {
     logger.error({ err }, "Claude audit failed");
-    res.status(500).json({ error: "Audit failed", details: err instanceof Error ? err.message : "Unknown error" });
+    res.status(500).json({
+      code: "SERVER_ERROR",
+      error: "Audit failed",
+      details: err instanceof Error ? err.message : "Unknown error",
+    });
   }
 });
 

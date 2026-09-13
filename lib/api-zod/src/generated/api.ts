@@ -18,7 +18,7 @@ export const HealthCheckResponse = zod.object({
 /**
  * @summary Audit a business website for AI visibility
  */
-export const runAuditBodyQueriesMin = 3;
+export const runAuditBodyQueriesMin = 1;
 export const runAuditBodyQueriesMax = 3;
 
 export const RunAuditBody = zod.object({
@@ -27,10 +27,10 @@ export const RunAuditBody = zod.object({
     .string()
     .describe('Business category (e.g. \"premium laptop bags\")'),
   queries: zod
-    .array(zod.string())
+    .array(zod.string().min(1))
     .min(runAuditBodyQueriesMin)
     .max(runAuditBodyQueriesMax)
-    .describe("Three target queries to rank for in AI answers"),
+    .describe("One to three non-empty target queries to rank for in AI answers"),
   location: zod
     .string()
     .optional()

@@ -251,7 +251,7 @@ export default function Home() {
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Submit error state (rate limit, generic, etc.)
-  const [submitError, setSubmitError] = useState<"free_limit_reached" | "generic" | null>(null);
+  const [submitError, setSubmitError] = useState<"free_limit_reached" | "site_unreachable" | "invalid_input" | "generic" | null>(null);
   // Track that form_start has only fired once
   const hasTrackedStart = useRef(false);
 
@@ -369,13 +369,10 @@ export default function Home() {
     );
   };
 
-  // Build exactly 3 queries, padding with suggestions or repeats if user left q2/q3 blank
-  const getQueriesForSubmit = (): [string, string, string] => {
-    const pool = querySuggestions.filter(s => s !== query1 && s !== query2 && s !== query3);
-    const q2 = query2 || pool[0] || query1;
-    const q3 = query3 || pool[1] || q2;
-    return [query1, q2, q3];
-  };
+  // Send only the queries the user actually filled in (1–3 non-empty strings).
+  // Empty optional fields are stripped so the backend never sees blank entries.
+  const getQueriesForSubmit = (): string[] =>
+    [query1, query2, query3].filter(q => q.trim().length > 0);
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
@@ -413,9 +410,13 @@ export default function Home() {
           navigate("/results");
         },
         onError: (error: unknown) => {
-          const apiErr = error as { status?: number; data?: { error?: string } };
+          const apiErr = error as { status?: number; data?: { code?: string; error?: string } };
           if (apiErr.status === 429 || apiErr.data?.error === "free_limit_reached") {
             setSubmitError("free_limit_reached");
+          } else if (apiErr.data?.code === "SITE_UNREACHABLE") {
+            setSubmitError("site_unreachable");
+          } else if (apiErr.data?.code === "INVALID_INPUT") {
+            setSubmitError("invalid_input");
           } else {
             setSubmitError("generic");
           }
@@ -691,8 +692,19 @@ export default function Home() {
                     </p>
                   </div>
                 )}
+                {submitError === "site_unreachable" && (
+                  <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-left">
+                    <p className="text-sm font-semibold text-red-900">We couldn't reach that website</p>
+                    <p className="text-xs text-red-800 mt-1">
+                      The site may be blocking automated checks. Double-check the URL, or try a different one.
+                    </p>
+                  </div>
+                )}
+                {submitError === "invalid_input" && (
+                  <p className="text-sm text-red-600 text-center">Please fill in at least one search query.</p>
+                )}
                 {submitError === "generic" && (
-                  <p className="text-sm text-red-600 text-center">Audit failed — please try again.</p>
+                  <p className="text-sm text-red-600 text-center">Something went wrong on our end — please try again in a moment.</p>
                 )}
               </div>
             </form>

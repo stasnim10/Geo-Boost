@@ -1,0 +1,38 @@
+Sprint 2 Blocker Fixes: audit contract, error mapping, events reliability
+Context: A UX re-test of the live dev app surfaced a P0 regression plus two supporting bugs. The audit flow is currently broken for the normal (single-query) user path. Fix all items below. Do not introduce new features — this is stabilization only.
+BUG 1 — P0 CRITICAL: Frontend/backend query-count contract mismatch (audit is broken)
+The #56 UX change made customer queries 2 and 3 optional on the client, but the backend /api/geoboost/audit Zod schema still enforces queries min(3). Any user submitting fewer than 3 queries gets a 400 with body "Array must contain at least 3 element(s)", which the UI renders as a generic "Audit failed — please try again." This means the primary happy path (one query) fails 100% of the time.
+Required fix:
+
+Change the queries validation on /api/geoboost/audit to accept a minimum of 1 query and a maximum of 3 (z.array(z.string().min(1)).min(1).max(3) or equivalent), matching the frontend where queries 2 and 3 are optional.
+Ensure the audit/scoring logic handles 1 or 2 queries gracefully (no array-index assumptions expecting exactly 3).
+Confirm the frontend sends only the filled query fields (strip empty strings before POST) so an empty optional field never becomes an empty-string element that fails min(1).
+
+Acceptance: Submitting the form with exactly one query returns 200 with a full result payload and renders the results page. Two-query and three-query submissions still work.
+BUG 2 — P1: Generic error message hides the real failure cause
+Every non-200 from /api/geoboost/audit currently collapses into "Audit failed — please try again," giving users (and QA) no signal. At minimum three distinct failure modes exist: too-few/invalid queries (validation 400), target site unreachable/bot-protected (e.g. Shake Shack returns a 400 because the crawler is blocked), and server/scoring errors (5xx).
+Required fix:
+
+Return structured, distinguishable errors from the backend: a machine-readable code (e.g. INVALID_INPUT, SITE_UNREACHABLE, SERVER_ERROR) plus a human-readable message.
+Map these in the UI to specific, friendly copy, for example: unreachable site → "We couldn't reach that website — it may be blocking automated checks. Try a different URL." ; validation → inline field error, not a global banner; server → "Something went wrong on our end. Please try again in a moment."
+Log the underlying cause server-side for debugging.
+
+Acceptance: Auditing a bot-protected/unreachable domain shows the "couldn't reach that website" message (not "Audit failed"); a validation failure shows an inline field message; the generic banner only appears for true server errors.
+BUG 3 — P2: Intermittent /api/events 503
+/api/events returns 200 on the homepage but intermittently 503 on the audit/results page. Analytics failures must never affect or block the user-facing flow.
+Required fix:
+
+Wrap all /api/events calls in fire-and-forget error handling on the client (never awaited in the critical path, never surfaced to the user).
+Investigate and fix the server-side 503 source (likely a missing env/key or an unhandled dependency when the events sink is unavailable) so it degrades gracefully to a 204/200 no-op instead of 503.
+
+Acceptance: Analytics endpoint failures produce no console errors, no user-visible errors, and never block audit submission or results rendering.
+VERIFY (regression) — do not modify, just confirm still working after the above:
+
+#55 score shown before the email gate; #58 overall-score tooltip; #56 field labels (required/optional); #57 single primary CTA hierarchy; sub-score tooltips; ROI per-category caps (law $10k, real estate $10k, restaurant $4k, gym $3k) with the "How is this calculated?" disclosure; email-gate graceful degradation when RESEND_API_KEY is absent.
+
+TWO OPEN ITEMS FROM THE ORIGINAL AUDIT — confirm status:
+
+Citation false-negative: a site that IS cited in the live AI citation test was scored "Not Cited" (originally seen with stripe.com). Confirm the citation-matching logic now correctly reconciles the citation test result with the "Cited/Not Cited" score.
+Deployment suspension: the production URL show-me-on-ai.replit.app was suspended (billing). Confirm the deployment is live again, since it needs to be up for the investor meeting.
+
+
