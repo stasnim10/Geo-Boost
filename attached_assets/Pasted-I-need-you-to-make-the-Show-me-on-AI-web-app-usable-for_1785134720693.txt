@@ -1,0 +1,40 @@
+I need you to make the "Show me on AI" web app usable for non-technical small business owners — think a local plumber, restaurant owner, or consultant with zero SEO/web-dev background. Right now the interface uses technical language that this audience won't understand. Please audit the app and make the following changes.
+
+CONTEXT
+The product runs an "AI Visibility Audit" that scores a business 0–100 on how well AI assistants (ChatGPT, Claude, Gemini, Perplexity) can find and recommend them. The score is a composite of four technical checks currently labeled: "Citation Rate," "Semantic Density," "Structural Formatting," and "Technical Access" (which covers Bing indexing, robots.txt, and schema markup). Users then get a paid Fix/Monitor/Grow plan to address issues.
+
+PROBLEM
+The scoring dimensions, technical checks, and recommended fixes are written in SEO/developer language. A non-technical user can see they scored "34/100" but won't understand why, what "robots.txt" or "schema markup" means, or what to actually do about it. This creates confusion and drop-off instead of urgency to buy.
+
+WHAT TO FIX
+
+1. Replace jargon with plain language everywhere it appears (score labels, tooltips, email reports, action items). Examples of the translation needed:
+   - "Citation Rate" → "How often AI mentions you by name"
+   - "Semantic Density" → "How clear and specific your website content is"
+   - "Structural Formatting" → "How easy your site is for AI to read"
+   - "Technical Access" → "Whether AI robots can even see your website"
+   - "robots.txt is blocking GPTBot" → "A hidden setting on your website is telling AI 'do not look at this business' — this is likely costing you customers"
+   - "Schema markup missing" → "Your website isn't telling Google/AI basic facts about your business (hours, location, services) in a format they understand"
+   - "Bing indexing" → "Whether your business shows up in the index ChatGPT uses to find businesses"
+   Keep the technical term available in a small "for my web developer" expandable section so power users and developers aren't stripped of precision — but the default view should never assume technical knowledge.
+
+2. Add a plain-language layer to every score and result. Every number, badge, or technical flag should have a one-sentence explanation next to it in everyday words, not just a tooltip that requires a hover/click to discover it exists.
+
+3. Simplify the results page hierarchy. Don't show all four technical dimensions with equal weight up front. Lead with: the overall score in plain terms ("Critical — AI is not recommending you"), the single biggest issue in one sentence, and one clear next action. Progressive disclosure: let users expand into "show me the details" if they want more.
+
+4. Make every recommended fix actionable without technical skill. Instead of describing the problem, give a copy-paste snippet or a "forward this to your web developer" button that packages the technical instruction, so the business owner never has to understand robots.txt themselves — they just need to know something is wrong and how to get it fixed.
+
+5. Add a short, friendly onboarding (2–3 screens max) before the first audit runs, explaining in plain terms what the tool does and why it matters — no assumption the user knows what "AI visibility" or "GEO" means. Use a simple analogy (e.g., "Imagine a new employee who only reads certain files — if you don't give them the right information, they can't help your customers find you").
+
+6. Add a persistent "What does this mean?" pattern — small (?) icons next to any term that isn't everyday English, opening a one-sentence plain explanation, not a technical glossary entry.
+
+7. Rewrite all email reports (weekly Monitor emails, audit results) in the same plain-language style. Assume the reader is scanning on a phone in under 30 seconds.
+
+8. Keep the visual design, brand colors, and existing layout structure — this is a language and information-hierarchy fix, not a redesign. Don't change pricing, plans, or backend logic.
+
+ACCEPTANCE CRITERIA
+- A person with no SEO or web development background should be able to read any screen and understand what their score means and what to do next, without clicking anything.
+- No unexplained technical term should appear in the default (non-expanded) view anywhere in the product, including emails.
+- Every fix/recommendation should end in a concrete, non-technical action ("send this to your web developer," "click here to fix automatically," etc.) rather than a technical description alone.
+
+Please start by showing me the current copy on the results page and audit report so we can agree on the plain-language replacements before you implement them across the app.
