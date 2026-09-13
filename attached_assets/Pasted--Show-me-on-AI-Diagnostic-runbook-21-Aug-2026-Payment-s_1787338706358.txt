@@ -1,0 +1,152 @@
+
+Show me on AI · Diagnostic runbook · 21 Aug 2026
+
+Payment succeeds, plan stays Free
+Stripe took the money and your app never found out. Below: the one test that tells you which half of the system is broken, the six things that cause this ranked by how often they actually are the cause, and the fix for each.
+
+Start here
+
+One test splits the problem in two
+Make a test payment. Then check two places — Stripe's event log, and your own database row. Everything else follows from what those two say.
+
+1. Stripe Dashboard → Developers → Webhooks → [your endpoint] → Events
+   Look for: checkout.session.completed   → note the HTTP response code
+
+2. Your database, your own user row
+   SELECT id, email, plan, stripe_customer_id, updated_at FROM users WHERE email = 'you@…';
+No event, or 4xx / 5xx
+The webhook never landed
+Stripe tried and failed, or was never told where to knock. Go to suspects 1 and 2. This is the most common answer by a wide margin.
+
+200 OK · DB says free
+The handler ran and wrote nothing
+Your code received the event, returned 200, and failed to match it to a user — or wrote a field nobody reads. Suspects 3 and 4.
+
+200 OK · DB says paid
+The backend is fine — the UI is lying
+The plan is correct in the database and the frontend is showing a stale or absent user. Suspects 5 and 6.
+
+Ranked by likelihood
+
+The six causes
+1
+Most likely on Replit
+Stripe is knocking on a door that no longer exists
+Why it happens here
+Your app is served from a *.replit.dev URL. That host sleeps when idle and changes when the Repl is recreated. A webhook endpoint registered against yesterday's URL is dead today, and a sleeping Repl returns nothing at all. Stripe retries for up to three days and you never see it, because nothing in your app logs a request that never arrived.
+Check
+Compare the endpoint URL in Stripe's dashboard against the URL your app is actually served from right now. They must match exactly, including https:// and the full path.
+Fix
+Re-register the endpoint against a stable host. Use your custom domain — showmeonai.com — not the Replit preview URL, and deploy so the domain stays reachable when nobody is looking at it. For local testing, forward events instead:
+stripe listen --forward-to https://showmeonai.com/api/stripe/webhook
+2
+Very common
+Signature verification fails on every single event
+Symptom
+Stripe's event log shows the event arriving and your endpoint answering 400 — every time, without exception.
+Cause
+Stripe signs the raw request body. If a JSON body parser runs before your webhook route, the body has already been parsed and re-serialized by the time constructEvent sees it, and the signature can never match. Mounting order is the whole bug.
+Fix
+Mount the webhook route with a raw body parser before the global JSON middleware:
+app.post('/api/stripe/webhook',
+  express.raw({ type: 'application/json' }),
+  handleStripeWebhook);
+
+app.use(express.json());   // ← must come after
+Second cause, same symptom
+The signing secret from stripe listen is not the same as the endpoint's secret in the dashboard. Both start whsec_. Using one where the other belongs produces a permanent 400 that looks exactly like the parser bug.
+3
+Likely if you see 200s
+The handler can't tell which user just paid
+Cause
+The checkout.session.completed payload only knows what you put into it. If the session was created without your internal user id, the handler is left guessing — usually matching on customer_email, which silently misses whenever the Stripe email differs from the signup email, or updates zero rows and returns 200 anyway.
+Check
+Open your checkout-session creation code. Does it set client_reference_id and metadata?
+const session = await stripe.checkout.sessions.create({
+  mode: 'subscription',
+  line_items: [{ price: PRICE_ID, quantity: 1 }],
+  client_reference_id: user.id,          // ← the link back to your user
+  customer_email: user.email,
+  metadata: { userId: user.id, plan: 'monitor' },
+  success_url: `${BASE}/success?session_id={CHECKOUT_SESSION_ID}`,
+  cancel_url:  `${BASE}/pricing`,
+});
+Also
+Make the update assert. If it reports zero rows changed, throw and return a non-2xx so Stripe retries and the failure becomes visible instead of silent.
+4
+Cheap to rule out
+Billing writes one field, the gates read another
+Cause
+The webhook sets subscription_tier = 'monitor'; the feature gate asks for user.plan, gets undefined, and falls through to the free default. Or the values differ in case — 'Monitor' written, 'monitor' compared. Every gate fails closed, so paid content stays locked and nothing errors.
+Check
+Grep for every place the plan is written and every place it is read. There should be exactly one field name and one canonical set of values.
+Fix
+Define the tiers once, in one module, as lowercase constants, and import that everywhere. Never compare plan strings inline in a component.
+5
+Confirmed in your screenshot
+The success page guesses the plan and guesses wrong
+Evidence
+Your page renders “Welcome to Free” and “Your Free plan is now active.” That word is being interpolated from a variable that fell back to its default. The page never learned which plan was bought.
+Cause
+The success route reads the plan from a query parameter or from client state that was never set, rather than from the server. There is also a timing trap: the browser redirect frequently arrives before Stripe's webhook, so even a correct lookup can read a not-yet-upgraded row and show Free.
+Fix
+Pass session_id={CHECKOUT_SESSION_ID} in the success URL, then have the server retrieve that session and report the real plan. Show a brief “confirming your payment” state and re-poll for a few seconds rather than rendering a plan name you aren't sure of.
+6
+Confirmed in your screenshot
+The frontend is rendering without a user at all
+Evidence
+Your results page shows the banner “Create a free account to save these results” while the same page's navigation shows you signed in as simum with a Dashboard link. Two parts of one screen disagree about whether anyone is logged in.
+Why this matters more than it looks
+This is the same disease as the plan bug. Some components read live auth state and some render from a cached or absent user object. A paid user hitting a component on the wrong side of that split sees the free experience no matter how correct the database is.
+Fix
+One source of truth for the session, consumed everywhere. Invalidate and refetch it after sign-in and after returning from checkout. Then verify with a hard refresh: if paid features appear only after Cmd+Shift+R, the bug is entirely cache invalidation.
+Order of work
+
+Do it in this sequence
+Each step either finds the bug or eliminates a branch. Don't skip ahead — a fix applied to the wrong layer hides the real fault.
+
+Run the split test
+Test payment, read Stripe's event log, read your own user row. Write down both answers before touching any code.
+
+Confirm the endpoint URL is stable and current
+Point the webhook at your custom domain, never the Replit preview host. Send a test event from the dashboard and confirm a 200.
+
+Check body-parser order and the signing secret
+Raw parser on the webhook route, mounted before express.json(). Verify the whsec_ in your environment matches the endpoint you are actually receiving from.
+
+Add client_reference_id and metadata to the checkout session
+Then make the handler throw on a zero-row update, so a failed match surfaces as a retry instead of a silent 200.
+
+Unify the plan field
+One field name, one lowercase value set, defined in one module, imported by every gate.
+
+Make the success page ask the server
+Retrieve the checkout session by id, show a confirming state, and poll briefly rather than printing a default plan name.
+
+Unify session state on the client
+Refetch the user after sign-in and after checkout. The “create a free account” banner on a signed-in page should disappear as a side effect — if it doesn't, you still have two sources of truth.
+
+Re-test end to end on a fresh account
+New email, real card, watch the event land, watch the row change, watch the locked panels open. Your own account may now have state that masks the bug.
+
+The rule worth adopting permanently
+Never grant access because a browser arrived at /success. Anyone can type that URL. Access is granted by the webhook, or by a server-side retrieval of the checkout session — both of which Stripe can vouch for. The success page's job is to report what the server decided, never to decide it.
+
+Make the handler idempotent while you're in there. Stripe retries, and a retry must not double-charge, double-provision, or reset a plan someone has since changed.
+
+Found while reading your exports
+
+Other defects worth the same trip
+These aren't the payment bug, but they're in the same files and several are one-line fixes that visibly raise the quality of what a paying customer sees.
+
+Where	What's wrong	Severity
+/results	The audited URL is printed raw, tracking parameters and all — ?srsltid=AfmBOorUyfh4OV… — so your headline is three lines of Google click-id garbage, repeated four times down the page. Strip the query string and show perfumania.com.	High
+/results	Three gauges — 14, 42, 55 — with no stated relationship. A reader immediately asks why the headline score is lower than both components, and nothing answers. Either show the weighting or show one number.	Medium
+/results	Three different prices compete inside two screens: $149/mo, $49 quick-fix, then $49 fix files again. One page, one ask.	High
+/results	The $5.8k/month revenue-loss figure is labelled “based on typical market data.” Against a skeptical buyer this is the weakest claim on an otherwise strong page — it invites the question of where 4,000 monthly searches came from. Show the method, or show a range.	Medium
+/optimizer	Auto-fetch scrapes the whole DOM: the 8,000 characters pulled from Perfumania are mostly “Pause slideshow”, “Close modal”, “Forgot your password?” and the login form. You then trim to 6,000, so the boilerplate survives and real copy gets cut. Extract main content, drop nav, modals and forms, before trimming.	High
+Navigation	/audit returns a 404 reading “Did you forget to add the page to the router?” — a developer message shipped to production. The Audit and Fix nav links both resolve to the homepage.	High
+Navigation	Sign In and Get Started appear on the homepage but are absent from /pricing, /compare and /optimizer — the signup button vanishes on the page where people decide to buy.	High
+Homepage	Two competing primary actions. The AI Search Simulator sits above the fold; the actual audit form — the thing that converts — is roughly 1,200px further down in a different button colour.	Medium
+Audit form	Query fields labelled “Query 1 / 2 / 3” with no examples attached. The five example prompts that would help are wired to the simulator above, not to the form.	Medium
+Compiled from the four exported PDFs (results, success, optimizer ×2) and a walk of the live site on 21 August 2026. Severity reflects effect on a paying customer, not effort to fix.
