@@ -426,7 +426,7 @@ router.post("/geoboost/audit", async (req, res): Promise<void> => {
   const parsed = RunAuditBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
-  const { url, category, queries, name, email, location } = parsed.data;
+  const { url, category, queries, name = "", email = "", location } = parsed.data;
   req.log.info({ url, category, location, name, email }, "Starting audit");
 
   const scrapeResult = await scrapeUrlFull(url);

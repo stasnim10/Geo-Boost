@@ -35,8 +35,8 @@ export const RunAuditBody = zod.object({
     .string()
     .optional()
     .describe('Business city or region (e.g. \"Rochester, NY\")'),
-  name: zod.string().describe("Submitter name for email capture"),
-  email: zod.string().email().describe("Submitter email for email capture"),
+  name: zod.string().optional().describe("Submitter name for email capture"),
+  email: zod.string().email().optional().describe("Submitter email for email capture"),
 });
 
 export const runAuditResponseAiVisibilityScoreMin = 0;

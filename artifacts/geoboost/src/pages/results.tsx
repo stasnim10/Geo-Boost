@@ -830,13 +830,109 @@ function SaveResultsBanner({ onDismiss }: { onDismiss: () => void }) {
   );
 }
 
+function EmailGate({ result, category, onUnlock }: { result: AuditResult; category: string; onUnlock: () => void }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return;
+    setStatus("sending");
+    try {
+      const res = await fetch("/api/geoboost/send-results", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim(),
+          url: result.scrapedUrl,
+          category,
+          aiVisibilityScore: result.aiVisibilityScore,
+          semanticDensityScore: result.semanticDensityScore,
+          structuralFormattingScore: result.structuralFormattingScore,
+          weaknesses: result.weaknesses,
+          competitorPatterns: result.competitorPatterns,
+        }),
+      });
+      const data = await res.json() as { success?: boolean; error?: string };
+      if (res.ok || data.success) {
+        onUnlock();
+      } else {
+        setErrorMsg(data.error || "Something went wrong — please try again.");
+        setStatus("error");
+      }
+    } catch {
+      setErrorMsg("Network error. Please try again.");
+      setStatus("error");
+    }
+  };
+
+  return (
+    <div className="my-8 rounded-2xl overflow-hidden border-2 border-green-300 shadow-lg">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-5">
+        <div className="flex items-center gap-3 mb-1">
+          <Lock className="w-5 h-5 text-green-400 flex-shrink-0" />
+          <h2 className="text-white font-extrabold text-lg">See your {result.weaknesses.length} fixes — enter your email to unlock the full report</h2>
+        </div>
+        <p className="text-slate-400 text-sm pl-8">Your score is above. The full breakdown — what's holding you back, what competitors do differently, and your estimated monthly revenue loss — is one step away.</p>
+      </div>
+      <div className="bg-white px-6 py-6">
+        <form onSubmit={submit} className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-600">Your Name</label>
+              <input
+                type="text"
+                value={name}
+                onChange={e => { setName(e.target.value); if (status === "error") setStatus("idle"); }}
+                placeholder="Jane Doe"
+                required
+                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-600">Work Email</label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
+                placeholder="jane@company.com"
+                required
+                className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          {status === "error" && (
+            <p className="text-red-600 text-xs">{errorMsg}</p>
+          )}
+          <div className="flex items-center gap-4">
+            <button
+              type="submit"
+              disabled={status === "sending" || !name.trim() || !email.trim()}
+              style={{ backgroundColor: status === "sending" || !name.trim() || !email.trim() ? undefined : "#22c55e" }}
+              className="px-8 py-3 text-white text-sm font-extrabold rounded-xl hover:opacity-90 transition-opacity disabled:bg-slate-300 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {status === "sending" && <Loader2 className="w-4 h-4 animate-spin" />}
+              {status === "sending" ? "Unlocking…" : "Unlock full report →"}
+            </button>
+            <p className="text-xs text-slate-400">No spam. We'll also send a copy to your inbox.</p>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Results() {
   const [, setLocation] = useLocation();
+  const { isSignedIn } = useUser();
   const [result, setResult] = useState<AuditResult | null>(null);
   const [category, setCategory] = useState("your industry");
   const [editingCategory, setEditingCategory] = useState(false);
   const [bannerDismissed, setBannerDismissed] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [emailUnlocked, setEmailUnlocked] = useState(false);
 
   useEffect(() => {
     const stored = sessionStorage.getItem("geoboost_audit_result");
@@ -974,216 +1070,227 @@ export default function Results() {
         </div>
       )}
 
-      {/* Score gauges */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-        <div className="col-span-1 md:col-span-3 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col md:flex-row items-center justify-between">
-          <div className="text-center md:text-left mb-6 md:mb-0">
-            <h2 className="text-xl font-bold text-slate-900 mb-1">How Often AI Recommends You</h2>
-            <p className="text-slate-500 max-w-md">Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor.</p>
-            <button
-              onClick={() => setModalOpen(true)}
-              className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2 transition-colors"
-            >
-              <HelpCircle className="w-3.5 h-3.5" />
-              Why is my score this low?
-            </button>
-          </div>
-          <Gauge value={result.aiVisibilityScore} size={180} strokeWidth={16} className="mx-auto md:mx-0" />
+      {/* Main score gauge — always visible */}
+      <div className="mb-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col md:flex-row items-center justify-between">
+        <div className="text-center md:text-left mb-6 md:mb-0">
+          <h2 className="text-xl font-bold text-slate-900 mb-1">How Often AI Recommends You</h2>
+          <p className="text-slate-500 max-w-md">Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor.</p>
+          <button
+            onClick={() => setModalOpen(true)}
+            className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2 transition-colors"
+          >
+            <HelpCircle className="w-3.5 h-3.5" />
+            Why is my score this low?
+          </button>
         </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
-          <h3 className="font-semibold text-slate-700 mb-4">Content Depth</h3>
-          <Gauge value={result.semanticDensityScore} size={120} strokeWidth={10} />
-          <p className="text-xs text-slate-500 text-center mt-4">How well your page answers the questions AI gets asked about your business</p>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
-          <h3 className="font-semibold text-slate-700 mb-4">Page Readability</h3>
-          <Gauge value={result.structuralFormattingScore} size={120} strokeWidth={10} />
-          <p className="text-xs text-slate-500 text-center mt-4">How easily AI can scan and understand your page layout</p>
-        </div>
-
-        <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
-          <h3 className="text-xl font-bold mb-2">Ready to fix this?</h3>
-          <p className="text-slate-300 text-sm mb-6">Start ranking in ChatGPT and Claude today.</p>
-          <CtaButton label="Optimize My Content — $149/month" className="w-full h-12 text-base" />
-          <Link href="/optimizer">
-            <span className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white underline transition-colors cursor-pointer">
-              or try the free optimizer tool
-            </span>
-          </Link>
-        </div>
+        <Gauge value={result.aiVisibilityScore} size={180} strokeWidth={16} className="mx-auto md:mx-0" />
       </div>
 
-      {/* Live AI Citation Test */}
-      <CitationResultsSection
-        citationResults={citationResults}
-        aiCitationScore={aiCitationScore}
-        domain={domain}
-        isPaidPlan={isPaidPlan}
-      />
-
-      {/* What Customers Ask AI */}
-      {categoryQueries.length > 0 && (
-        <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6">
-          <h2 className="text-lg font-bold text-slate-900 mb-1">What Customers Ask AI About {category} Businesses</h2>
-          <p className="text-sm text-slate-500 mb-4">These are the searches AI assistants get asked in your category. Your business needs to show up in these answers.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {categoryQueries.slice(0, 6).map((q, i) => (
-              <div key={i} className="flex items-start gap-2 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
-                <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-slate-700">{q.replace(/\[city\]/gi, "your city")}</p>
-              </div>
-            ))}
-          </div>
-        </div>
+      {/* Email gate — shown for unauthenticated users who haven't submitted */}
+      {!isSignedIn && !emailUnlocked && (
+        <EmailGate result={result} category={category} onUnlock={() => setEmailUnlocked(true)} />
       )}
 
-      {/* What You Could Be Missing Each Month */}
-      <div className="mb-8 rounded-2xl overflow-hidden border border-red-200">
-        <div className="bg-red-600 px-6 py-4 flex items-center gap-3">
-          <DollarSign className="w-5 h-5 text-white flex-shrink-0" />
-          <h2 className="text-white font-bold text-lg">What You Could Be Missing Each Month</h2>
-        </div>
-        <div className="bg-red-50 p-6 md:p-8">
-          {/* Hero dollar figure */}
-          <div className="text-center mb-6">
-            <div className="text-5xl font-extrabold text-red-700 mb-2">{formatMoney(roi.amount)}</div>
-            <p className="text-sm text-red-800 font-medium">estimated monthly revenue going to competitors instead of you</p>
-            <p className="text-xs text-slate-500 mt-1">Based on typical search volume for {category} businesses</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
-              <div className="text-2xl font-extrabold text-slate-900">{roi.monthlyQueries.toLocaleString()}</div>
-              <div className="text-xs text-slate-500 mt-1">Monthly AI searches in your category</div>
+      {/* Full report — shown when email is captured or user is authenticated */}
+      {(isSignedIn || emailUnlocked) && (
+        <>
+          {/* Sub-score gauges + fix CTA */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
+              <h3 className="font-semibold text-slate-700 mb-4">Content Depth</h3>
+              <Gauge value={result.semanticDensityScore} size={120} strokeWidth={10} />
+              <p className="text-xs text-slate-500 text-center mt-4">How well your page answers the questions AI gets asked about your business</p>
             </div>
-            <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
-              <div className="text-2xl font-extrabold text-red-600">
-                {Math.round(roi.monthlyQueries * (1 - result.aiVisibilityScore / 100)).toLocaleString()}
-              </div>
-              <div className="text-xs text-slate-500 mt-1">Searches where a competitor is recommended instead</div>
-            </div>
-            <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
-              <div className="text-2xl font-extrabold text-red-700">{invisibilityRate}%</div>
-              <div className="text-xs text-slate-500 mt-1">Of AI searches where your competitors beat you</div>
-            </div>
-          </div>
 
-          <p className="text-red-800 text-sm leading-relaxed mb-6 bg-red-100 rounded-lg px-4 py-3 border border-red-200">
-            💡 AI typically recommends <strong>5 different businesses</strong> per answer in your category — not just one winner. Right now you're not one of them. Show me on AI helps you claim one of those spots before your competitors do.
-          </p>
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
+              <h3 className="font-semibold text-slate-700 mb-4">Page Readability</h3>
+              <Gauge value={result.structuralFormattingScore} size={120} strokeWidth={10} />
+              <p className="text-xs text-slate-500 text-center mt-4">How easily AI can scan and understand your page layout</p>
+            </div>
 
-          <div className="bg-white rounded-xl border border-red-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <p className="text-slate-700 text-sm">
-              <strong>Full ongoing optimization costs $149/month.</strong> If it recovers even one customer per month it pays for itself — most businesses see results within 2–4 weeks.
-            </p>
-            <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
-              <CtaButton label="Start Full Plan — $149/mo" className="px-6 py-3 text-sm whitespace-nowrap" />
-              <Link href="/fix">
-                <span className="text-xs text-slate-400 hover:text-slate-600 underline cursor-pointer whitespace-nowrap">
-                  or get the $49 quick-fix files
+            <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
+              <h3 className="text-xl font-bold mb-2">Ready to fix this?</h3>
+              <p className="text-slate-300 text-sm mb-6">Start ranking in ChatGPT and Claude today.</p>
+              <CtaButton label="Optimize My Content — $149/month" className="w-full h-12 text-base" />
+              <Link href="/optimizer">
+                <span className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white underline transition-colors cursor-pointer">
+                  or try the free optimizer tool
                 </span>
               </Link>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Weaknesses + Competitor patterns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle className="w-5 h-5 text-red-500" />
-            <h3 className="text-xl font-bold text-slate-900">What's Holding You Back</h3>
-          </div>
-          {result.weaknesses.map((weakness, i) => (
-            <div key={i} className="bg-red-50 rounded-lg border border-red-100 p-4 flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 text-sm font-bold">
-                {i + 1}
+          {/* Live AI Citation Test */}
+          <CitationResultsSection
+            citationResults={citationResults}
+            aiCitationScore={aiCitationScore}
+            domain={domain}
+            isPaidPlan={isPaidPlan}
+          />
+
+          {/* What Customers Ask AI */}
+          {categoryQueries.length > 0 && (
+            <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6">
+              <h2 className="text-lg font-bold text-slate-900 mb-1">What Customers Ask AI About {category} Businesses</h2>
+              <p className="text-sm text-slate-500 mb-4">These are the searches AI assistants get asked in your category. Your business needs to show up in these answers.</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {categoryQueries.slice(0, 6).map((q, i) => (
+                  <div key={i} className="flex items-start gap-2 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
+                    <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-slate-700">{q.replace(/\[city\]/gi, "your city")}</p>
+                  </div>
+                ))}
               </div>
-              <p className="text-red-900 text-sm">{toPlainEnglish(weakness)}</p>
             </div>
-          ))}
-        </div>
+          )}
 
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-blue-500" />
-            <h3 className="text-xl font-bold text-slate-900">What High-Ranking Businesses Do Differently</h3>
-          </div>
-          {result.competitorPatterns.map((pattern, i) => (
-            <div key={i} className="bg-blue-50 rounded-lg border border-blue-100 p-4 flex gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
-                <Zap className="w-3 h-3" />
+          {/* What You Could Be Missing Each Month */}
+          <div className="mb-8 rounded-2xl overflow-hidden border border-red-200">
+            <div className="bg-red-600 px-6 py-4 flex items-center gap-3">
+              <DollarSign className="w-5 h-5 text-white flex-shrink-0" />
+              <h2 className="text-white font-bold text-lg">What You Could Be Missing Each Month</h2>
+            </div>
+            <div className="bg-red-50 p-6 md:p-8">
+              {/* Hero dollar figure */}
+              <div className="text-center mb-6">
+                <div className="text-5xl font-extrabold text-red-700 mb-2">{formatMoney(roi.amount)}</div>
+                <p className="text-sm text-red-800 font-medium">estimated monthly revenue going to competitors instead of you</p>
+                <p className="text-xs text-slate-500 mt-1">Based on typical search volume for {category} businesses</p>
               </div>
-              <p className="text-blue-900 text-sm">{toPlainEnglish(pattern)}</p>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Fix Package CTA */}
-      <div className="mt-8 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-bold uppercase tracking-widest bg-white/15 text-slate-300 px-2.5 py-1 rounded-full">
-                ⚡ Quick Fix · One-time $49
-              </span>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
+                  <div className="text-2xl font-extrabold text-slate-900">{roi.monthlyQueries.toLocaleString()}</div>
+                  <div className="text-xs text-slate-500 mt-1">Monthly AI searches in your category</div>
+                </div>
+                <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
+                  <div className="text-2xl font-extrabold text-red-600">
+                    {Math.round(roi.monthlyQueries * (1 - result.aiVisibilityScore / 100)).toLocaleString()}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">Searches where a competitor is recommended instead</div>
+                </div>
+                <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
+                  <div className="text-2xl font-extrabold text-red-700">{invisibilityRate}%</div>
+                  <div className="text-xs text-slate-500 mt-1">Of AI searches where your competitors beat you</div>
+                </div>
+              </div>
+
+              <p className="text-red-800 text-sm leading-relaxed mb-6 bg-red-100 rounded-lg px-4 py-3 border border-red-200">
+                💡 AI typically recommends <strong>5 different businesses</strong> per answer in your category — not just one winner. Right now you're not one of them. Show me on AI helps you claim one of those spots before your competitors do.
+              </p>
+
+              <div className="bg-white rounded-xl border border-red-100 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p className="text-slate-700 text-sm">
+                  <strong>Full ongoing optimization costs $149/month.</strong> If it recovers even one customer per month it pays for itself — most businesses see results within 2–4 weeks.
+                </p>
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                  <CtaButton label="Start Full Plan — $149/mo" className="px-6 py-3 text-sm whitespace-nowrap" />
+                  <Link href="/fix">
+                    <span className="text-xs text-slate-400 hover:text-slate-600 underline cursor-pointer whitespace-nowrap">
+                      or get the $49 quick-fix files
+                    </span>
+                  </Link>
+                </div>
+              </div>
             </div>
-            <h2 className="text-xl font-extrabold mb-1">Get Your Complete Fix Package</h2>
-            <p className="text-slate-400 text-sm max-w-lg">
-              Done-for-you files: schema markup, Google Business Profile copy, social media bios, and a full content brief — generated for <strong className="text-white">{result.scrapedUrl}</strong> in minutes. Apply them yourself, once.
-            </p>
-            <div className="flex flex-wrap gap-3 mt-4">
-              {[
-                { icon: "🔧", label: "Business Info Code" },
-                { icon: "📍", label: "Google Business Listing" },
-                { icon: "📱", label: "Social Descriptions" },
-                { icon: "📄", label: "Website Fix Guide" },
-              ].map(({ icon, label }) => (
-                <span key={label} className="flex items-center gap-1.5 text-xs font-semibold bg-white/10 rounded-lg px-3 py-1.5">
-                  {icon} {label}
-                </span>
+          </div>
+
+          {/* Weaknesses + Competitor patterns */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-5 h-5 text-red-500" />
+                <h3 className="text-xl font-bold text-slate-900">What's Holding You Back</h3>
+              </div>
+              {result.weaknesses.map((weakness, i) => (
+                <div key={i} className="bg-red-50 rounded-lg border border-red-100 p-4 flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0 text-sm font-bold">
+                    {i + 1}
+                  </div>
+                  <p className="text-red-900 text-sm">{toPlainEnglish(weakness)}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="w-5 h-5 text-blue-500" />
+                <h3 className="text-xl font-bold text-slate-900">What High-Ranking Businesses Do Differently</h3>
+              </div>
+              {result.competitorPatterns.map((pattern, i) => (
+                <div key={i} className="bg-blue-50 rounded-lg border border-blue-100 p-4 flex gap-3">
+                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Zap className="w-3 h-3" />
+                  </div>
+                  <p className="text-blue-900 text-sm">{toPlainEnglish(pattern)}</p>
+                </div>
               ))}
             </div>
           </div>
-          <Link href="/fix">
-            <button
-              style={{ backgroundColor: "#22c55e" }}
-              className="flex-shrink-0 flex items-center gap-2 px-7 py-3.5 text-white font-extrabold text-base rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap shadow-lg"
-            >
-              <Zap className="w-5 h-5" />
-              Unlock for $49
-            </button>
-          </Link>
-        </div>
-      </div>
 
-      <ShareResultsSection result={result} category={category} />
-      <EmailResultsSection result={result} category={category} />
+          {/* Fix Package CTA */}
+          <div className="mt-8 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold uppercase tracking-widest bg-white/15 text-slate-300 px-2.5 py-1 rounded-full">
+                    ⚡ Quick Fix · One-time $49
+                  </span>
+                </div>
+                <h2 className="text-xl font-extrabold mb-1">Get Your Complete Fix Package</h2>
+                <p className="text-slate-400 text-sm max-w-lg">
+                  Done-for-you files: schema markup, Google Business Profile copy, social media bios, and a full content brief — generated for <strong className="text-white">{result.scrapedUrl}</strong> in minutes. Apply them yourself, once.
+                </p>
+                <div className="flex flex-wrap gap-3 mt-4">
+                  {[
+                    { icon: "🔧", label: "Business Info Code" },
+                    { icon: "📍", label: "Google Business Listing" },
+                    { icon: "📱", label: "Social Descriptions" },
+                    { icon: "📄", label: "Website Fix Guide" },
+                  ].map(({ icon, label }) => (
+                    <span key={label} className="flex items-center gap-1.5 text-xs font-semibold bg-white/10 rounded-lg px-3 py-1.5">
+                      {icon} {label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <Link href="/fix">
+                <button
+                  style={{ backgroundColor: "#22c55e" }}
+                  className="flex-shrink-0 flex items-center gap-2 px-7 py-3.5 text-white font-extrabold text-base rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap shadow-lg"
+                >
+                  <Zap className="w-5 h-5" />
+                  Unlock for $49
+                </button>
+              </Link>
+            </div>
+          </div>
 
-      {/* Bottom CTA */}
-      <div className="mt-8 bg-[#0f172a] rounded-2xl p-8 text-center text-white">
-        <div className="flex justify-center mb-3">
-          <span className="text-xs font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-3 py-1 rounded-full">
-            🚀 Full Solution · $149/month subscription
-          </span>
-        </div>
-        <h2 className="text-2xl font-extrabold mb-2">Stop losing {formatMoney(roi.amount)}/month to competitors</h2>
-        <p className="text-slate-400 mb-6 max-w-xl mx-auto">
-          Show me on AI rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking. Ongoing monitoring included.
-        </p>
-        <CtaButton label="Optimize My Content — $149/month" className="px-10 py-4 text-lg mx-auto" />
-        <div className="mt-4">
-          <Link href="/optimizer">
-            <span className="text-slate-400 hover:text-white text-sm underline transition-colors cursor-pointer">
-              or try the free optimizer tool
-            </span>
-          </Link>
-        </div>
-      </div>
+          <ShareResultsSection result={result} category={category} />
+          <EmailResultsSection result={result} category={category} />
+
+          {/* Bottom CTA */}
+          <div className="mt-8 bg-[#0f172a] rounded-2xl p-8 text-center text-white">
+            <div className="flex justify-center mb-3">
+              <span className="text-xs font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-3 py-1 rounded-full">
+                🚀 Full Solution · $149/month subscription
+              </span>
+            </div>
+            <h2 className="text-2xl font-extrabold mb-2">Stop losing {formatMoney(roi.amount)}/month to competitors</h2>
+            <p className="text-slate-400 mb-6 max-w-xl mx-auto">
+              Show me on AI rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking. Ongoing monitoring included.
+            </p>
+            <CtaButton label="Optimize My Content — $149/month" className="px-10 py-4 text-lg mx-auto" />
+            <div className="mt-4">
+              <Link href="/optimizer">
+                <span className="text-slate-400 hover:text-white text-sm underline transition-colors cursor-pointer">
+                  or try the free optimizer tool
+                </span>
+              </Link>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

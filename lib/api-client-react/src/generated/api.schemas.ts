@@ -23,9 +23,9 @@ export interface AuditRequest {
   /** Business city or region (e.g. "Rochester, NY") */
   location?: string;
   /** Submitter name for email capture */
-  name: string;
+  name?: string;
   /** Submitter email for email capture */
-  email: string;
+  email?: string;
 }
 
 export type AuditCitationModelResultModel =

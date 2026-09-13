@@ -1,0 +1,54 @@
+Below are two deliverables. The first is a **copy-paste-ready build prompt** you can drop straight into your Replit Agent (or hand to a developer). The second is a **phased action plan** that sequences the work, assigns success metrics, and keeps you honest about what "10/10" actually requires.
+
+---
+
+# PART 1 — The Build Prompt (paste this into Replit Agent)
+
+> **Role & context**
+> You are working on "Show me on AI," a B2B SaaS AI-visibility platform for small and medium business owners. It audits how often AI assistants (ChatGPT, Claude, Gemini, Perplexity) recommend a business versus its competitors, then sells fixes. The stack is already built and deployed on Replit. I want you to fix a set of prioritized issues without regressing existing functionality. Work through them in the order given (P0 → P3). After each priority level, summarize what you changed and how to verify it. Do not deploy destructive database migrations without flagging them first.
+
+> **P0 — Critical (do these first; they break trust or the product)**
+>
+> **P0.1 — Fix the citation-detection logic.** Today, exact-string matching produces false negatives: an audit of stripe.com returned "Not Cited — 0 of 3" even though the AI answers named "Stripe" first in every response. Replace exact matching with entity-aware matching: normalize casing/whitespace, strip the TLD and common suffixes (Inc, LLC, .com), match on the brand/business name AND the domain, and use token/fuzzy matching (e.g. Levenshtein or a normalized-inclusion check) so "Stripe," "stripe.com," and "Stripe, Inc." all register as a citation. Add a confidence score to each match. **Acceptance:** auditing a domain whose brand is clearly named in the model's answer must register as "Cited," and the per-query and overall Citation Score must reflect it.
+>
+> **P0.2 — Add a "results may be imperfect" recovery affordance.** On the results page, add a small "Re-run this test" control per query and a one-line disclaimer ("AI answers change frequently — re-run if this looks off"). **Acceptance:** user can re-trigger a single query without redoing the whole audit.
+>
+> **P0.3 — Reconcile pricing across the app to a single source of truth.** Today the Pricing page shows Monitor at $49/mo ("Most Popular") and Grow at $149/mo, but the Results page and Compare page both present "$149/month" as *the* monthly plan. Create one pricing config object/constant consumed by every page (Pricing, Results, Compare, Optimizer, Fix). **Acceptance:** the plan names, prices, and "most popular" badge are identical everywhere; grep the codebase to confirm no hardcoded price strings remain outside the config.
+
+> **P1 — Conversion & core UX (highest revenue impact)**
+>
+> **P1.1 — Show the score BEFORE the email gate.** Restructure the audit flow so that after "Reveal Audit Score," the user immediately sees their headline score (e.g. 43/100) and the citation summary ("0 of 3"). Move the name/email capture so it gates the **detailed fix report / recommendations / query breakdown**, not the score itself. Reframe the gate copy from "Where should we send your report?" to something like "See your 3 fixes — enter your email to unlock the full report." **Acceptance:** a user can see their numeric score and pass/fail citation status without submitting any PII.
+>
+> **P1.2 — Fix the query-field requirements and validation.** In the audit form, make only Query 1 required; mark Queries 2 and 3 as optional in the label. Replace the default browser validation with inline, styled field-level messages. **Acceptance:** submitting with only Query 1 filled succeeds; empty optional fields never block submission.
+>
+> **P1.3 — Surface AI-suggested queries proactively.** The "AI-suggested queries / Auto-fill all 3" panel currently only appears after a failed submit. Trigger it as soon as the user has entered a website URL + business category (on blur or debounce). **Acceptance:** suggestions appear before the user ever hits submit.
+>
+> **P1.4 — Make auto-fill non-destructive.** "Auto-fill all 3" currently overwrites text the user already typed. Change it to fill only empty query slots, or prompt before replacing existing input, and add an undo. **Acceptance:** clicking auto-fill never silently erases user-entered text.
+>
+> **P1.5 — Establish CTA hierarchy on the results page.** The results page presents ~6 competing CTAs. Define ONE primary action (recommend: "Get my fix plan"), demote the rest to secondary/tertiary (text links or a single pricing module), and remove duplicate CTAs. **Acceptance:** exactly one visually-dominant primary button above the fold in the monetization section.
+
+> **P2 — Clarity, trust & polish**
+>
+> **P2.1 — Explain the scores.** Add tooltips/expanders on the overall score and the sub-scores (Content Depth, Page Readability) with a plain-English "how we calculate this" note. **P2.2 — Validate the revenue estimate.** The "$7.2k/month lost" figure needs a visible "how we estimate this" tooltip and a sanity check so it scales sensibly across business categories (test with a local dentist, a mid-size SaaS, and a coffee shop). **P2.3 — Lightweight onboarding.** Add a one-sentence helper under the hero form explaining what happens after submit ("We'll test your site against real AI models and score it in ~60 seconds"). **P2.4 — Accessibility pass:** ensure form labels are programmatically associated, color-contrast on the muted gray helper text meets WCAG AA, and the flow is keyboard-navigable.
+
+> **P3 — Consistency & housekeeping**
+>
+> **P3.1** Ensure the "This app isn't live yet" state can't be reached by end users (see the separate deployment note — this is an ops/billing issue, not code). **P3.2** Confirm the free-tier limit ("one free audit per domain per month") is enforced server-side, not just in the UI. **P3.3** Add basic analytics events on each funnel step (form start, submit, gate view, gate submit, results view, CTA click) so conversion can be measured after these changes ship.
+
+> **General rules:** Preserve the plain-language tone (it's a real strength). Don't add tech jargon to user-facing copy. After each priority tier, give me a changelog and manual test steps. Flag anything that touches the database or billing before executing.
+
+---
+
+# PART 2 — The Action Plan (how to sequence it toward 10/10)
+
+**Sprint 0 — Emergency (before the investor meeting).** Two things must happen immediately and neither is really a "sprint": resume the suspended Replit deployment / resolve the billing failure so the public URL is live, and ship P0.1 (the citation bug) plus P0.3 (pricing consistency). A live URL and a tool that doesn't visibly mislabel a cited brand are table stakes for any demo. The citation bug in particular is the one thing most likely to blow up in front of an investor who runs their own audit.
+
+**Sprint 1 — Conversion (week 1–2, highest ROI).** Ship all of P1. The score-before-gate change (P1.1) is the highest-leverage improvement in the entire plan — it's the difference between a funnel that feels like a free gift and one that feels like a bait-and-switch. Pair it with the query-field fixes (P1.2–P1.4) and the CTA hierarchy cleanup (P1.5). Instrument analytics (P3.3) at the same time so you can prove the lift.
+
+**Sprint 2 — Trust & polish (week 3–4).** Ship P2. Score explanations and a defensible revenue estimate move the product from "clever demo" to "tool I trust with my business." Run the multi-category sanity check here; that's also the moment to catch whether the "$7.2k lost" number looks absurd for a small local shop.
+
+**Sprint 3+ — Strategic moat (the real path to 10/10).** The prompt above gets you to a clean, honest 8/10. The last two points are what make it defensible, and they're product bets rather than bug fixes: build the **before/after proof loop** (auto re-audit that visually shows the score climbing after fixes are applied — this is your retention engine and best sales asset), and move up the value chain toward **"Done-for-you" publishing** (one-click push to Google Business Profile / CMS) so a non-technical owner never has to paste schema markup themselves. These justify the recurring subscription far better than fear-of-loss framing.
+
+**What "10/10" actually means here, honestly.** No single sprint gets you to 10/10 — that rating belongs to a product where the data is verifiably correct, the funnel converts without feeling manipulative, and the value is proven with a measurable before/after. Sprints 0–2 remove the things that would make an expert distrust the product. Sprint 3 is what earns the top score. I'd frame it to investors exactly that way: "Here's the polished v1, and here's the specific roadmap to the defensible version."
+
+Want me to also draft a tighter, one-paragraph version of the build prompt for a quick Agent run, or turn Part 2 into a shareable checklist you can paste into your Replit task board?

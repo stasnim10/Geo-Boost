@@ -241,19 +241,9 @@ export default function Home() {
   const [query2, setQuery2] = useState("");
   const [query3, setQuery3] = useState("");
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [step, setStep] = useState<"initial" | "email">("initial");
-
-  // Pre-fill name + email from Clerk when signed in
-  useEffect(() => {
-    if (isSignedIn && user) {
-      const clerkName = user.fullName || user.firstName || "";
-      const clerkEmail = user.emailAddresses[0]?.emailAddress || "";
-      if (clerkName) setName(clerkName);
-      if (clerkEmail) setEmail(clerkEmail);
-    }
-  }, [isSignedIn, user]);
+  // For signed-in users we still pass name/email to the audit API so the welcome email fires
+  const clerkName = isSignedIn && user ? (user.fullName || user.firstName || "") : "";
+  const clerkEmail = isSignedIn && user ? (user.emailAddresses[0]?.emailAddress || "") : "";
 
   const urlDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -337,9 +327,22 @@ export default function Home() {
     );
   };
 
-  const submitAudit = (auditName: string, auditEmail: string) => {
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url || !category || !query1 || !query2 || !query3) return;
     runAudit.mutate(
-      { data: { url, category, queries: [query1, query2, query3], location: location || undefined, name: auditName, email: auditEmail } },
+      {
+        data: {
+          url,
+          category,
+          queries: [query1, query2, query3],
+          location: location || undefined,
+          // Pass Clerk details for signed-in users so the welcome email fires immediately;
+          // anonymous users are captured by the email gate on the results page instead.
+          name: clerkName || undefined,
+          email: clerkEmail || undefined,
+        },
+      },
       {
         onSuccess: (result) => {
           sessionStorage.setItem("geoboost_audit_result", JSON.stringify(result));
@@ -349,22 +352,6 @@ export default function Home() {
         },
       }
     );
-  };
-
-  const handleNext = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url || !category || !query1 || !query2 || !query3) return;
-    if (isSignedIn && name && email) {
-      submitAudit(name, email);
-    } else {
-      setStep("email");
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !email) return;
-    submitAudit(name, email);
   };
 
   const showSuggestion = categorySuggestion && categorySuggestion.label !== category;
@@ -400,7 +387,7 @@ export default function Home() {
                 <div className="bg-blue-600 h-full rounded-full animate-pulse" style={{ width: "60%" }} />
               </div>
             </div>
-          ) : step === "initial" ? (
+          ) : (
             <form onSubmit={handleNext} className="space-y-5">
               {/* URL */}
               <div className="space-y-2">
@@ -548,29 +535,6 @@ export default function Home() {
               <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold bg-[#0f172a] hover:bg-slate-800 text-white">
                 Check My AI Visibility — Free
               </Button>
-            </form>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="text-center mb-6">
-                <h3 className="text-2xl font-bold text-slate-900 mb-2">Almost done</h3>
-                <p className="text-slate-500">Where should we send your detailed audit report?</p>
-              </div>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-slate-700 font-semibold">Your Name</Label>
-                  <Input id="name" placeholder="Jane Doe" className="h-12 bg-slate-50 border-slate-200" value={name} onChange={e => setName(e.target.value)} required />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email" className="text-slate-700 font-semibold">Work Email</Label>
-                  <Input id="email" type="email" placeholder="jane@company.com" className="h-12 bg-slate-50 border-slate-200" value={email} onChange={e => setEmail(e.target.value)} required />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Button type="button" variant="outline" size="lg" className="h-14 w-1/3" onClick={() => setStep("initial")}>Back</Button>
-                <Button type="submit" size="lg" className="h-14 w-2/3 text-lg font-bold bg-[#22c55e] hover:bg-green-600 text-white border-b-4 border-green-700 active:border-b-0 active:translate-y-1 transition-all">
-                  Reveal Audit Score
-                </Button>
-              </div>
             </form>
           )}
         </div>
