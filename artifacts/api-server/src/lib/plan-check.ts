@@ -1,16 +1,19 @@
 import { db, subscriptionsTable } from "@workspace/db";
+import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  PLANS,
+  type Plan,
+  type SubscriptionStatus,
+  hasPlanEntitlement,
+} from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
-
-type Plan = "free" | "fix" | "monitor" | "grow";
 
 interface PlanInfo {
   plan: Plan;
-  status: string;
+  status: SubscriptionStatus;
   currentPeriodEnd: Date | null;
   stripeCustomerId: string | null;
 }
-
-const ACTIVE_STATUSES = new Set(["active", "trialing"]);
 
 const cache = new Map<string, { data: PlanInfo; expiresAt: number }>();
 const CACHE_TTL_MS = 60_000;
@@ -30,12 +33,19 @@ export async function getUserPlan(clerkUserId: string): Promise<PlanInfo> {
 
   let data: PlanInfo;
   if (rows.length === 0) {
-    data = { plan: "free", status: "active", currentPeriodEnd: null, stripeCustomerId: null };
+    data = {
+      plan: PLANS.FREE,
+      status: "active",
+      currentPeriodEnd: null,
+      stripeCustomerId: null,
+    };
   } else {
     const row = rows[0];
     data = {
-      plan: ACTIVE_STATUSES.has(row.status) ? (row.plan as Plan) : "free",
-      status: row.status,
+      plan: ACTIVE_SUBSCRIPTION_STATUSES.includes(row.status as SubscriptionStatus)
+        ? (row.plan as Plan)
+        : PLANS.FREE,
+      status: row.status as SubscriptionStatus,
       currentPeriodEnd: row.currentPeriodEnd ?? null,
       stripeCustomerId: row.stripeCustomerId ?? null,
     };
@@ -49,7 +59,7 @@ export function invalidatePlanCache(clerkUserId: string): void {
   cache.delete(clerkUserId);
 }
 
-export function requirePlan(allowedPlans: Plan[]) {
+export function requirePlan(allowedPlans: readonly Plan[]) {
   return async (
     req: import("express").Request,
     res: import("express").Response,
@@ -66,7 +76,7 @@ export function requirePlan(allowedPlans: Plan[]) {
 
     const { plan, status } = await getUserPlan(userId);
 
-    if (!allowedPlans.includes(plan) || !ACTIVE_STATUSES.has(status)) {
+    if (!hasPlanEntitlement(plan, status, allowedPlans)) {
       const minPlan = allowedPlans[0];
       res.status(403).json({
         error: "upgrade_required",

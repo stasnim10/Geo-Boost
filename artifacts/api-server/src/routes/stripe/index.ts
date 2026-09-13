@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import Stripe from "stripe";
 import { getAuth } from "@clerk/express";
 import { db, subscriptionsTable } from "@workspace/db";
+import { PLANS, type Plan } from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
@@ -22,11 +23,29 @@ function getBaseUrl(): string {
   return "http://localhost:80";
 }
 
+function requireCheckoutUser(req: Request, res: Response): string | null {
+  const clerkUserId = getAuth(req)?.userId;
+  if (!clerkUserId) {
+    res.status(401).json({ error: "sign_in_required" });
+    return null;
+  }
+  return clerkUserId;
+}
+
+function checkoutSuccessUrl(base: string): string {
+  return `${base}/success?session_id={CHECKOUT_SESSION_ID}`;
+}
+
+function subscriptionMetadata(clerkUserId: string, plan: Plan) {
+  return { clerkUserId, plan };
+}
+
 router.post("/create-checkout-session", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
-    const clerkUserId = getAuth(req)?.userId ?? null;
+    const clerkUserId = requireCheckoutUser(req, res);
+    if (!clerkUserId) return;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -45,11 +64,10 @@ router.post("/create-checkout-session", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
-      metadata: {
-        ...(clerkUserId ? { clerkUserId } : {}),
-        plan: "grow",
-      },
-      success_url: `${base}/success`,
+      client_reference_id: clerkUserId,
+      metadata: subscriptionMetadata(clerkUserId, PLANS.GROW),
+      subscription_data: { metadata: subscriptionMetadata(clerkUserId, PLANS.GROW) },
+      success_url: checkoutSuccessUrl(base),
       cancel_url: `${base}/cancel`,
       allow_promotion_codes: true,
     });
@@ -74,7 +92,8 @@ router.post("/create-monitor-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
-    const clerkUserId = getAuth(req)?.userId ?? null;
+    const clerkUserId = requireCheckoutUser(req, res);
+    if (!clerkUserId) return;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -92,11 +111,10 @@ router.post("/create-monitor-checkout", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
-      metadata: {
-        ...(clerkUserId ? { clerkUserId } : {}),
-        plan: "monitor",
-      },
-      success_url: `${base}/monitor-setup?checkout=success`,
+      client_reference_id: clerkUserId,
+      metadata: subscriptionMetadata(clerkUserId, PLANS.MONITOR),
+      subscription_data: { metadata: subscriptionMetadata(clerkUserId, PLANS.MONITOR) },
+      success_url: checkoutSuccessUrl(base),
       cancel_url: `${base}/pricing`,
       allow_promotion_codes: true,
     });
@@ -121,7 +139,8 @@ router.post("/create-monitor-annual-checkout", async (req, res): Promise<void> =
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
-    const clerkUserId = getAuth(req)?.userId ?? null;
+    const clerkUserId = requireCheckoutUser(req, res);
+    if (!clerkUserId) return;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -139,11 +158,10 @@ router.post("/create-monitor-annual-checkout", async (req, res): Promise<void> =
           quantity: 1,
         },
       ],
-      metadata: {
-        ...(clerkUserId ? { clerkUserId } : {}),
-        plan: "monitor",
-      },
-      success_url: `${base}/monitor-setup?checkout=success`,
+      client_reference_id: clerkUserId,
+      metadata: subscriptionMetadata(clerkUserId, PLANS.MONITOR),
+      subscription_data: { metadata: subscriptionMetadata(clerkUserId, PLANS.MONITOR) },
+      success_url: checkoutSuccessUrl(base),
       cancel_url: `${base}/pricing`,
       allow_promotion_codes: true,
     });
@@ -168,7 +186,8 @@ router.post("/create-grow-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
-    const clerkUserId = getAuth(req)?.userId ?? null;
+    const clerkUserId = requireCheckoutUser(req, res);
+    if (!clerkUserId) return;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -186,11 +205,10 @@ router.post("/create-grow-checkout", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
-      metadata: {
-        ...(clerkUserId ? { clerkUserId } : {}),
-        plan: "grow",
-      },
-      success_url: `${base}/monitor-setup?checkout=success`,
+      client_reference_id: clerkUserId,
+      metadata: subscriptionMetadata(clerkUserId, PLANS.GROW),
+      subscription_data: { metadata: subscriptionMetadata(clerkUserId, PLANS.GROW) },
+      success_url: checkoutSuccessUrl(base),
       cancel_url: `${base}/pricing`,
       allow_promotion_codes: true,
     });
@@ -215,7 +233,8 @@ router.post("/create-grow-annual-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
-    const clerkUserId = getAuth(req)?.userId ?? null;
+    const clerkUserId = requireCheckoutUser(req, res);
+    if (!clerkUserId) return;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -233,11 +252,10 @@ router.post("/create-grow-annual-checkout", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
-      metadata: {
-        ...(clerkUserId ? { clerkUserId } : {}),
-        plan: "grow",
-      },
-      success_url: `${base}/monitor-setup?checkout=success`,
+      client_reference_id: clerkUserId,
+      metadata: subscriptionMetadata(clerkUserId, PLANS.GROW),
+      subscription_data: { metadata: subscriptionMetadata(clerkUserId, PLANS.GROW) },
+      success_url: checkoutSuccessUrl(base),
       cancel_url: `${base}/pricing`,
       allow_promotion_codes: true,
     });
@@ -262,7 +280,8 @@ router.post("/create-fix-checkout", async (req, res): Promise<void> => {
   try {
     const stripe = getStripe();
     const base = getBaseUrl();
-    const clerkUserId = getAuth(req)?.userId ?? null;
+    const clerkUserId = requireCheckoutUser(req, res);
+    if (!clerkUserId) return;
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -279,11 +298,9 @@ router.post("/create-fix-checkout", async (req, res): Promise<void> => {
           quantity: 1,
         },
       ],
-      metadata: {
-        ...(clerkUserId ? { clerkUserId } : {}),
-        plan: "fix",
-      },
-      success_url: `${base}/fix-success`,
+      client_reference_id: clerkUserId,
+      metadata: subscriptionMetadata(clerkUserId, PLANS.FIX),
+      success_url: checkoutSuccessUrl(base),
       cancel_url: `${base}/fix`,
     });
 
@@ -303,16 +320,37 @@ router.post("/create-fix-checkout", async (req, res): Promise<void> => {
   }
 });
 
-router.get("/subscription", async (req: Request, res: Response): Promise<void> => {
+async function getBillingStatus(req: Request, res: Response): Promise<void> {
   const auth = getAuth(req);
   const clerkUserId = auth?.userId;
 
   if (!clerkUserId) {
-    res.status(401).json({ error: "Unauthorized" });
+    res.status(401).json({ error: "sign_in_required" });
     return;
   }
 
   try {
+    const sessionId = typeof req.query.session_id === "string" ? req.query.session_id : null;
+    let checkoutPaid = false;
+
+    if (sessionId) {
+      if (!sessionId.startsWith("cs_")) {
+        res.status(400).json({ error: "invalid_checkout_session" });
+        return;
+      }
+
+      const checkoutSession = await getStripe().checkout.sessions.retrieve(sessionId);
+      if (checkoutSession.client_reference_id !== clerkUserId) {
+        logger.warn(
+          { sessionId, clerkUserId, checkoutOwner: checkoutSession.client_reference_id },
+          "Billing status requested for checkout session owned by another user",
+        );
+        res.status(403).json({ error: "checkout_session_not_owned" });
+        return;
+      }
+      checkoutPaid = checkoutSession.payment_status === "paid";
+    }
+
     const rows = await db
       .select()
       .from(subscriptionsTable)
@@ -320,7 +358,13 @@ router.get("/subscription", async (req: Request, res: Response): Promise<void> =
       .limit(1);
 
     if (rows.length === 0) {
-      res.json({ plan: "free", status: "active", currentPeriodEnd: null });
+      res.json({
+        plan: PLANS.FREE,
+        status: "active",
+        currentPeriodEnd: null,
+        checkoutPaid,
+        confirmed: false,
+      });
       return;
     }
 
@@ -330,11 +374,31 @@ router.get("/subscription", async (req: Request, res: Response): Promise<void> =
       status: sub.status,
       currentPeriodEnd: sub.currentPeriodEnd,
       stripeCustomerId: sub.stripeCustomerId,
+      checkoutPaid,
+      confirmed: checkoutPaid && sub.plan !== PLANS.FREE && (sub.status === "active" || sub.status === "trialing"),
     });
   } catch (err) {
-    logger.error({ err }, "Failed to fetch subscription");
-    res.status(500).json({ error: "Could not fetch subscription" });
+    logger.error({ err, clerkUserId }, "Failed to fetch billing status");
+    res.status(500).json({ error: "Could not fetch billing status" });
   }
+}
+
+router.get("/billing/status", getBillingStatus);
+
+// Backward-compatible route for existing clients. New code should use /billing/status.
+router.get("/subscription", getBillingStatus);
+
+router.post("/billing/activation-timeout", async (req: Request, res: Response): Promise<void> => {
+  const clerkUserId = getAuth(req)?.userId;
+  const sessionId = typeof req.body?.sessionId === "string" ? req.body.sessionId : null;
+
+  if (!clerkUserId || !sessionId) {
+    res.status(400).json({ error: "invalid_activation_timeout_report" });
+    return;
+  }
+
+  logger.error({ clerkUserId, sessionId }, "Billing activation exceeded confirmation window");
+  res.status(204).end();
 });
 
 router.post("/portal", async (req: Request, res: Response): Promise<void> => {

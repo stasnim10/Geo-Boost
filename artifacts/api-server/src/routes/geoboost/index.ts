@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { getAuth } from "@clerk/express";
 import { Resend } from "resend";
-import { RunAuditBody, OptimizeContentBody, DetectCategoryBody } from "@workspace/api-zod";
+import { RunAuditBody, OptimizeContentBody, DetectCategoryBody, PLANS } from "@workspace/api-zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
 import { db, auditsTable, citationResultsTable, sharedResultsTable, waitlistTable, freeTierAuditLogTable } from "@workspace/db";
 import { eq, count, and, gte, isNull } from "drizzle-orm";
@@ -730,7 +730,7 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
 });
 
 // ─── optimize ─────────────────────────────────────────────────────────────────
-router.post("/geoboost/optimize", requirePlan(["fix", "monitor", "grow"]), async (req, res): Promise<void> => {
+router.post("/geoboost/optimize", requirePlan([PLANS.FIX, PLANS.MONITOR, PLANS.GROW]), async (req, res): Promise<void> => {
   const parsed = OptimizeContentBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.message }); return; }
 
