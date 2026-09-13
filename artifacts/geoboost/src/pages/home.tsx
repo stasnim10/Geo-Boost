@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
+import { useUser } from "@clerk/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -222,6 +223,7 @@ function quickDetect(rawUrl: string): string | null {
 export default function Home() {
   const [, navigate] = useLocation();
   const runAudit = useRunAudit();
+  const { user, isSignedIn } = useUser();
 
   const [url, setUrl] = useState("");
   const [category, setCategory] = useState("");
@@ -239,6 +241,16 @@ export default function Home() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [step, setStep] = useState<"initial" | "email">("initial");
+
+  // Pre-fill name + email from Clerk when signed in
+  useEffect(() => {
+    if (isSignedIn && user) {
+      const clerkName = user.fullName || user.firstName || "";
+      const clerkEmail = user.emailAddresses[0]?.emailAddress || "";
+      if (clerkName) setName(clerkName);
+      if (clerkEmail) setEmail(clerkEmail);
+    }
+  }, [isSignedIn, user]);
 
   const urlDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -322,17 +334,9 @@ export default function Home() {
     );
   };
 
-  const handleNext = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!url || !category || !query1 || !query2 || !query3) return;
-    setStep("email");
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !email) return;
+  const submitAudit = (auditName: string, auditEmail: string) => {
     runAudit.mutate(
-      { data: { url, category, queries: [query1, query2, query3], location: location || undefined, name, email } },
+      { data: { url, category, queries: [query1, query2, query3], location: location || undefined, name: auditName, email: auditEmail } },
       {
         onSuccess: (result) => {
           sessionStorage.setItem("geoboost_audit_result", JSON.stringify(result));
@@ -342,6 +346,22 @@ export default function Home() {
         },
       }
     );
+  };
+
+  const handleNext = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!url || !category || !query1 || !query2 || !query3) return;
+    if (isSignedIn && name && email) {
+      submitAudit(name, email);
+    } else {
+      setStep("email");
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name || !email) return;
+    submitAudit(name, email);
   };
 
   const showSuggestion = categorySuggestion && categorySuggestion.label !== category;
