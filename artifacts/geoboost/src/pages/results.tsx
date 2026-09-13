@@ -982,12 +982,12 @@ function SaveResultsBanner({ onDismiss }: { onDismiss: () => void }) {
       <BookmarkPlus className="w-5 h-5 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-sm sm:text-base leading-tight">
-          Create a free account to save these results and track your progress over time.
+          Your account saves these results so you can track your progress over time.
         </p>
       </div>
-      <Link href="/sign-up">
+      <Link href="/dashboard">
         <button className="flex-shrink-0 px-4 py-1.5 bg-white text-green-700 font-bold text-sm rounded-lg hover:bg-green-50 transition-colors whitespace-nowrap">
-          Save Results
+          View dashboard
         </button>
       </Link>
       <button

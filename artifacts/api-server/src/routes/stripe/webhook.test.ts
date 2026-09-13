@@ -13,6 +13,14 @@ const mockStripeInstance = vi.hoisted(() => ({
 const mockInsertChain = vi.hoisted(() => ({
   values: vi.fn(),
   onConflictDoUpdate: vi.fn(),
+  onConflictDoNothing: vi.fn(),
+  returning: vi.fn(),
+}));
+
+const mockSelectChain = vi.hoisted(() => ({
+  from: vi.fn(),
+  where: vi.fn(),
+  limit: vi.fn(),
 }));
 
 const mockUpdateChain = vi.hoisted(() => ({
@@ -24,6 +32,7 @@ const mockUpdateChain = vi.hoisted(() => ({
 const mockDb = vi.hoisted(() => ({
   insert: vi.fn(),
   update: vi.fn(),
+  select: vi.fn(),
 }));
 
 vi.mock("stripe", () => {
@@ -39,6 +48,7 @@ vi.mock("stripe", () => {
 vi.mock("@workspace/db", () => ({
   db: mockDb,
   subscriptionsTable: { clerkUserId: "clerkUserId", stripeCustomerId: "stripeCustomerId" },
+  stripeWebhookEventsTable: { eventId: "eventId" },
 }));
 
 vi.mock("../../lib/logger", () => ({
@@ -73,9 +83,16 @@ beforeEach(() => {
   process.env.STRIPE_SECRET_KEY = "sk_test_dummy";
   process.env.STRIPE_WEBHOOK_SECRET = "whsec_dummy";
 
-  mockInsertChain.onConflictDoUpdate.mockResolvedValue([]);
+  mockInsertChain.onConflictDoUpdate.mockReturnValue(mockInsertChain);
+  mockInsertChain.onConflictDoNothing.mockResolvedValue([]);
+  mockInsertChain.returning.mockResolvedValue([{ clerkUserId: "user_123" }]);
   mockInsertChain.values.mockReturnValue(mockInsertChain);
   mockDb.insert.mockReturnValue(mockInsertChain);
+
+  mockSelectChain.limit.mockResolvedValue([]);
+  mockSelectChain.where.mockReturnValue(mockSelectChain);
+  mockSelectChain.from.mockReturnValue(mockSelectChain);
+  mockDb.select.mockReturnValue(mockSelectChain);
 
   mockUpdateChain.returning.mockResolvedValue([{ clerkUserId: "user_123" }]);
   mockUpdateChain.where.mockReturnValue(mockUpdateChain);
@@ -110,6 +127,24 @@ describe("stripeWebhookHandler — request validation", () => {
   });
 });
 
+describe("stripeWebhookHandler — replay protection", () => {
+  it("short-circuits a previously processed event without changing subscription state", async () => {
+    mockStripeInstance.webhooks.constructEvent.mockReturnValue({
+      type: "checkout.session.completed",
+      id: "evt_replayed",
+      data: { object: { id: "cs_replayed", mode: "payment" } },
+    });
+    mockSelectChain.limit.mockResolvedValueOnce([{ eventId: "evt_replayed" }]);
+
+    const { res, json } = makeRes();
+    await stripeWebhookHandler(makeReq(), res);
+
+    expect(json).toHaveBeenCalledWith({ received: true, duplicate: true });
+    expect(mockDb.insert).not.toHaveBeenCalled();
+    expect(mockDb.update).not.toHaveBeenCalled();
+  });
+});
+
 describe("stripeWebhookHandler — checkout.session.completed (payment mode)", () => {
   it("upserts plan=fix when mode is payment", async () => {
     mockStripeInstance.webhooks.constructEvent.mockReturnValue({
@@ -132,7 +167,8 @@ describe("stripeWebhookHandler — checkout.session.completed (payment mode)", (
     expect(status).not.toHaveBeenCalled();
     expect(json).toHaveBeenCalledWith({ received: true });
 
-    expect(mockDb.insert).toHaveBeenCalledOnce();
+    // One subscription write plus one processed-event record makes replay safe.
+    expect(mockDb.insert).toHaveBeenCalledTimes(2);
     const insertValues = mockInsertChain.values.mock.calls[0][0];
     expect(insertValues).toMatchObject({ plan: "fix", status: "active", clerkUserId: "user_abc" });
 
@@ -140,7 +176,7 @@ describe("stripeWebhookHandler — checkout.session.completed (payment mode)", (
     expect(conflictSet).toMatchObject({ plan: "fix", status: "active" });
   });
 
-  it("skips upsert when clerkUserId is absent in metadata", async () => {
+  it("returns a retryable failure when checkout identity is absent", async () => {
     mockStripeInstance.webhooks.constructEvent.mockReturnValue({
       type: "checkout.session.completed",
       id: "evt_002",
@@ -155,11 +191,12 @@ describe("stripeWebhookHandler — checkout.session.completed (payment mode)", (
       },
     });
 
-    const { res, json } = makeRes();
+    const { res, json, status } = makeRes();
     await stripeWebhookHandler(makeReq(), res);
 
     expect(mockDb.insert).not.toHaveBeenCalled();
-    expect(json).toHaveBeenCalledWith({ received: true });
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({ error: "Webhook handler failed" });
   });
 });
 
@@ -232,7 +269,7 @@ describe("stripeWebhookHandler — checkout.session.completed (subscription mode
     expect(insertValues.plan).toBe("grow");
   });
 
-  it("falls back to plan=free when metadata.plan is absent", async () => {
+  it("returns a retryable failure when a paid checkout is missing its plan", async () => {
     mockStripeInstance.webhooks.constructEvent.mockReturnValue({
       type: "checkout.session.completed",
       id: "evt_005",
@@ -247,12 +284,11 @@ describe("stripeWebhookHandler — checkout.session.completed (subscription mode
       },
     });
 
-    const { res, json } = makeRes();
+    const { res, json, status } = makeRes();
     await stripeWebhookHandler(makeReq(), res);
 
-    expect(json).toHaveBeenCalledWith({ received: true });
-    const insertValues = mockInsertChain.values.mock.calls[0][0];
-    expect(insertValues.plan).toBe("free");
+    expect(status).toHaveBeenCalledWith(500);
+    expect(json).toHaveBeenCalledWith({ error: "Webhook handler failed" });
   });
 });
 
@@ -421,7 +457,7 @@ describe("stripeWebhookHandler — customer.subscription.updated", () => {
 });
 
 describe("stripeWebhookHandler — customer.subscription.deleted", () => {
-  it("sets plan=free and status=cancelled for the matching customer", async () => {
+  it("marks the subscription cancelled while retaining the plan record for billing history", async () => {
     mockStripeInstance.webhooks.constructEvent.mockReturnValue({
       type: "customer.subscription.deleted",
       id: "evt_009",
@@ -444,7 +480,8 @@ describe("stripeWebhookHandler — customer.subscription.deleted", () => {
     expect(mockDb.update).toHaveBeenCalledOnce();
 
     const setArgs = mockUpdateChain.set.mock.calls[0][0];
-    expect(setArgs).toMatchObject({ plan: "free", status: "cancelled" });
+    expect(setArgs).toMatchObject({ status: "cancelled" });
+    expect(setArgs).not.toHaveProperty("plan");
   });
 
   it("skips update when customerId is missing", async () => {

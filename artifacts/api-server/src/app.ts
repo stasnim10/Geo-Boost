@@ -48,12 +48,12 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 app.post(
   "/api/stripe/webhook",
   express.raw({ type: "application/json" }),
-  stripeWebhookHandler,
+  (req, res) => stripeWebhookHandler(req, res),
 );
 app.post(
   "/api/webhook",
   express.raw({ type: "application/json" }),
-  stripeWebhookHandler,
+  (req, res) => stripeWebhookHandler(req, res, { legacyPath: true }),
 );
 
 app.use(cors({ credentials: true, origin: true }));

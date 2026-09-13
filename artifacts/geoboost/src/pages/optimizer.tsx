@@ -112,10 +112,12 @@ export default function Optimizer() {
   };
 
   const [upgradeRequired, setUpgradeRequired] = useState(false);
+  const [signInRequired, setSignInRequired] = useState(false);
 
   const optimize = () => {
     if (!content.trim() || !queries.trim()) return;
     setUpgradeRequired(false);
+    setSignInRequired(false);
     optimizeMutation.mutate(
       { data: { content, queries: queries.split(",").map((q) => q.trim()).filter(Boolean), category: auditCtx?.category } },
       {
@@ -124,6 +126,8 @@ export default function Optimizer() {
           const status = (err as { status?: number })?.status;
           if (status === 403) {
             setUpgradeRequired(true);
+          } else if (status === 401) {
+            setSignInRequired(true);
           }
         },
       }
@@ -293,7 +297,20 @@ export default function Optimizer() {
               </Link>
             </div>
           )}
-          {optimizeMutation.isError && !upgradeRequired && (
+          {signInRequired && (
+            <div className="mt-4 bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+              <div className="flex-1">
+                <p className="font-bold text-slate-900 text-sm mb-1">Sign in to use the Content Rewriter</p>
+                <p className="text-slate-600 text-xs">Your session has expired or you are not signed in. Sign in, then try your rewrite again.</p>
+              </div>
+              <Link href="/sign-in">
+                <button className="flex-shrink-0 px-5 py-2.5 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-slate-800 whitespace-nowrap">
+                  Sign in
+                </button>
+              </Link>
+            </div>
+          )}
+          {optimizeMutation.isError && !upgradeRequired && !signInRequired && (
             <p className="text-red-600 text-sm mt-3 text-center">
               {(optimizeMutation.error as Error)?.message ?? "Optimization failed. Please try again."}
             </p>

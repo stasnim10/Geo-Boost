@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import { useUser } from "@clerk/react";
 import { Loader2, CheckCircle2, Search, Globe, Mail, Plus, X, Lock } from "lucide-react";
+import { PLANS, type Plan } from "@workspace/api-zod";
 
 export default function MonitorSetup() {
   const { user, isLoaded } = useUser();
@@ -14,7 +15,7 @@ export default function MonitorSetup() {
   const [errorMsg, setErrorMsg] = useState("");
   const [existing, setExisting] = useState<{ domain: string; queries: string[]; email: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [plan, setPlan] = useState<string | null>(null);
+  const [plan, setPlan] = useState<Plan | null>(null);
 
   useEffect(() => {
     document.title = "Monitor Setup — Show me on AI";
@@ -49,9 +50,9 @@ export default function MonitorSetup() {
     }
 
     Promise.all([
-      fetch("/api/subscription", { credentials: "include" })
-        .then(r => r.ok ? r.json() as Promise<{ plan: string }> : { plan: "free" })
-        .catch(() => ({ plan: "free" })),
+      fetch("/api/billing/status", { credentials: "include" })
+        .then(r => r.ok ? r.json() as Promise<{ plan: Plan }> : { plan: PLANS.FREE })
+        .catch(() => ({ plan: PLANS.FREE })),
       fetch("/api/monitor/setup", { credentials: "include" })
         .then(r => r.ok ? r.json() as Promise<{ domain: string; queries: string[]; email: string }> : null)
         .catch(() => null),
@@ -106,7 +107,7 @@ export default function MonitorSetup() {
     );
   }
 
-  if (plan === "free") {
+  if (plan === PLANS.FREE) {
     return (
       <div className="max-w-xl mx-auto py-20 px-4 text-center">
         <div className="w-20 h-20 bg-amber-50 border border-amber-200 rounded-full flex items-center justify-center mx-auto mb-6">

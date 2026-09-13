@@ -8,10 +8,11 @@ import { logger } from "../../lib/logger";
 import { requireAuth } from "../audits/index";
 import { parseLLMJson } from "../../lib/parse-llm-json";
 import { requirePlan } from "../../lib/plan-check";
+import { PLANS } from "@workspace/api-zod";
 
 const router: IRouter = Router();
 
-const requireMonitorPlan = requirePlan(["monitor", "grow"]);
+const requireMonitorPlan = requirePlan([PLANS.MONITOR, PLANS.GROW]);
 
 // ─── GET /monitor/setup ───────────────────────────────────────────────────────
 router.get("/monitor/setup", requireAuth, requireMonitorPlan, async (req, res): Promise<void> => {

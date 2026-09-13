@@ -11,6 +11,13 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Legend,
 } from "recharts";
+import {
+  ACTIVE_SUBSCRIPTION_STATUSES,
+  PLANS,
+  getPlanLabel,
+  type Plan,
+  type SubscriptionStatus,
+} from "@workspace/api-zod";
 
 interface SavedAudit {
   id: number;
@@ -865,19 +872,10 @@ function GrowUpsellPanel({ isGrow }: { isGrow: boolean }) {
 }
 
 interface Subscription {
-  plan: string;
-  status: string;
+  plan: Plan;
+  status: SubscriptionStatus;
   currentPeriodEnd: string | null;
   stripeCustomerId?: string | null;
-}
-
-function planLabel(plan: string): string {
-  switch (plan) {
-    case "fix": return "Fix";
-    case "monitor": return "Monitor";
-    case "grow": return "Grow";
-    default: return "Free";
-  }
 }
 
 function PastDueBanner({ onManageBilling }: { onManageBilling: () => Promise<void> }) {
@@ -943,14 +941,14 @@ function BillingCard({ sub, onManageBilling }: { sub: Subscription; onManageBill
   const renewal = sub.currentPeriodEnd
     ? new Date(sub.currentPeriodEnd).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
     : null;
-  const isFree = sub.plan === "free";
+  const isFree = sub.plan === PLANS.FREE;
 
   return (
     <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
       <div className="flex items-center gap-2 flex-1 min-w-0">
         <CreditCard className="w-4 h-4 text-slate-400 flex-shrink-0" />
         <span className="text-slate-600">
-          <span className="font-bold text-slate-900">{planLabel(sub.plan)} plan</span>
+          <span className="font-bold text-slate-900">{getPlanLabel(sub.plan)} plan</span>
           {renewal && !isFree && (
             <span className="text-slate-400 ml-2 text-xs">· renews {renewal}</span>
           )}
@@ -1022,7 +1020,7 @@ export default function Dashboard() {
           if (!r.ok) throw new Error("Failed to load audits");
           return r.json() as Promise<SavedAudit[]>;
         }),
-      fetch("/api/subscription", { credentials: "include" })
+      fetch("/api/billing/status", { credentials: "include" })
         .then(r => r.ok ? r.json() as Promise<Subscription> : null)
         .catch(() => null),
     ])
@@ -1049,9 +1047,10 @@ export default function Dashboard() {
   };
 
   const name = user?.firstName || user?.emailAddresses[0]?.emailAddress?.split("@")[0];
-  const plan = sub?.plan ?? "free";
-  const isGrow = plan === "grow";
-  const canMonitor = plan === "monitor" || plan === "grow";
+  const plan = sub?.plan ?? PLANS.FREE;
+  const hasActiveSubscription = sub ? ACTIVE_SUBSCRIPTION_STATUSES.includes(sub.status) : false;
+  const isGrow = hasActiveSubscription && plan === PLANS.GROW;
+  const canMonitor = hasActiveSubscription && (plan === PLANS.MONITOR || plan === PLANS.GROW);
 
   return (
     <div className="max-w-5xl mx-auto py-12 px-4 md:px-8">

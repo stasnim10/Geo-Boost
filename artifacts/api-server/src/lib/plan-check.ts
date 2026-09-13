@@ -70,7 +70,10 @@ export function requirePlan(allowedPlans: readonly Plan[]) {
     const userId = auth?.userId;
 
     if (!userId) {
-      res.status(401).json({ error: "Unauthorized" });
+      res.status(401).json({
+        error: "sign_in_required",
+        message: "Sign in to use the Content Rewriter.",
+      });
       return;
     }
 
@@ -80,6 +83,7 @@ export function requirePlan(allowedPlans: readonly Plan[]) {
       const minPlan = allowedPlans[0];
       res.status(403).json({
         error: "upgrade_required",
+        message: "Your current plan does not include this feature. Choose a paid plan to continue.",
         requiredPlan: minPlan,
         currentPlan: plan,
         upgradeUrl: `/pricing?plan=${minPlan}`,

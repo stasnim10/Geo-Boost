@@ -72,10 +72,11 @@ describe("GET /stripe/subscription — free user (no DB row)", () => {
     const res = await request(app).get("/stripe/subscription");
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
+    expect(res.body).toMatchObject({
       plan: "free",
       status: "active",
       currentPeriodEnd: null,
+      confirmed: false,
     });
   });
 });

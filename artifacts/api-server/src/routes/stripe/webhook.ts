@@ -1,7 +1,13 @@
 import type { Request, Response } from "express";
 import Stripe from "stripe";
 import { Resend } from "resend";
-import { db, subscriptionsTable } from "@workspace/db";
+import { db, stripeWebhookEventsTable, subscriptionsTable } from "@workspace/db";
+import {
+  PLANS,
+  type Plan,
+  type SubscriptionStatus,
+  isPlan,
+} from "@workspace/api-zod";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { invalidatePlanCache } from "../../lib/plan-check";
@@ -110,10 +116,7 @@ async function sendPastDueWarning(opts: {
   }
 }
 
-type Plan = "free" | "fix" | "monitor" | "grow";
-type Status = "active" | "cancelled" | "past_due" | "trialing";
-
-function mapStripeStatus(stripeStatus: string): Status {
+function mapStripeStatus(stripeStatus: string): SubscriptionStatus {
   switch (stripeStatus) {
     case "active":
       return "active";
@@ -132,7 +135,43 @@ function mapStripeStatus(stripeStatus: string): Status {
   }
 }
 
-export async function stripeWebhookHandler(req: Request, res: Response): Promise<void> {
+async function resolveClerkUserId(opts: {
+  clientReferenceId?: string | null;
+  metadataClerkUserId?: string | null;
+  stripeCustomerId?: string | null;
+  eventId: string;
+}): Promise<string | null> {
+  if (opts.clientReferenceId) return opts.clientReferenceId;
+  if (opts.metadataClerkUserId) return opts.metadataClerkUserId;
+
+  if (opts.stripeCustomerId) {
+    const rows = await db
+      .select({ clerkUserId: subscriptionsTable.clerkUserId })
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.stripeCustomerId, opts.stripeCustomerId))
+      .limit(1);
+    if (rows[0]?.clerkUserId) return rows[0].clerkUserId;
+  }
+
+  logger.warn(
+    { eventId: opts.eventId, stripeCustomerId: opts.stripeCustomerId },
+    "Stripe webhook could not resolve a Clerk user; email matching is intentionally not used",
+  );
+  return null;
+}
+
+async function markEventProcessed(event: Stripe.Event): Promise<void> {
+  await db
+    .insert(stripeWebhookEventsTable)
+    .values({ eventId: event.id, eventType: event.type })
+    .onConflictDoNothing();
+}
+
+export async function stripeWebhookHandler(
+  req: Request,
+  res: Response,
+  opts: { legacyPath?: boolean } = {},
+): Promise<void> {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!webhookSecret) {
     logger.error("STRIPE_WEBHOOK_SECRET is not set");
@@ -157,29 +196,47 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
     return;
   }
 
+  if (opts.legacyPath) {
+    logger.warn({ eventId: event.id, eventType: event.type }, "Stripe webhook received through legacy /api/webhook alias");
+  }
+
+  const processed = await db
+    .select({ eventId: stripeWebhookEventsTable.eventId })
+    .from(stripeWebhookEventsTable)
+    .where(eq(stripeWebhookEventsTable.eventId, event.id))
+    .limit(1);
+  if (processed.length > 0) {
+    logger.info({ eventId: event.id, eventType: event.type }, "Duplicate Stripe webhook event ignored");
+    res.json({ received: true, duplicate: true });
+    return;
+  }
+
   logger.info({ type: event.type, id: event.id }, "Stripe webhook received");
 
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const clerkUserId = session.metadata?.clerkUserId;
+        const customerId = typeof session.customer === "string" ? session.customer : null;
+        const clerkUserId = await resolveClerkUserId({
+          clientReferenceId: session.client_reference_id,
+          metadataClerkUserId: session.metadata?.clerkUserId,
+          stripeCustomerId: customerId,
+          eventId: event.id,
+        });
 
         if (!clerkUserId) {
-          logger.warn({ sessionId: session.id }, "checkout.session.completed: no clerkUserId in metadata, skipping");
-          break;
+          throw new Error(`Unable to resolve Clerk user for checkout session ${session.id}`);
         }
 
-        const customerId = typeof session.customer === "string" ? session.customer : null;
-
         if (session.mode === "payment") {
-          await db
+          const upserted = await db
             .insert(subscriptionsTable)
             .values({
               clerkUserId,
               stripeCustomerId: customerId,
               stripePriceId: null,
-              plan: "fix",
+              plan: PLANS.FIX,
               status: "active",
               currentPeriodEnd: null,
             })
@@ -188,17 +245,29 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
               set: {
                 stripeCustomerId: customerId,
                 stripePriceId: null,
-                plan: "fix",
+                plan: PLANS.FIX,
                 status: "active",
                 currentPeriodEnd: null,
                 updatedAt: new Date(),
               },
-            });
+            })
+            .returning({ clerkUserId: subscriptionsTable.clerkUserId });
+
+          if (upserted.length === 0) {
+            throw new Error(`Fix checkout session ${session.id} did not update a subscription row`);
+          }
 
           invalidatePlanCache(clerkUserId);
-          logger.info({ clerkUserId, sessionId: session.id }, "Fix package subscription upserted");
+          logger.info(
+            { eventId: event.id, clerkUserId, sessionId: session.id, rowsAffected: 1 },
+            "Fix package subscription upserted",
+          );
         } else if (session.mode === "subscription") {
-          const plan: Plan = (session.metadata?.plan as Plan) ?? "free";
+          const rawPlan = session.metadata?.plan;
+          if (!isPlan(rawPlan) || rawPlan === PLANS.FREE) {
+            throw new Error(`Checkout session ${session.id} has an invalid paid plan`);
+          }
+          const plan: Plan = rawPlan;
           let currentPeriodEnd: Date | null = null;
           let stripePriceId: string | null = null;
 
@@ -212,7 +281,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
             stripePriceId = stripeSub.items.data[0]?.price?.id ?? null;
           }
 
-          await db
+          const upserted = await db
             .insert(subscriptionsTable)
             .values({
               clerkUserId,
@@ -232,10 +301,18 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
                 currentPeriodEnd,
                 updatedAt: new Date(),
               },
-            });
+            })
+            .returning({ clerkUserId: subscriptionsTable.clerkUserId });
+
+          if (upserted.length === 0) {
+            throw new Error(`Subscription checkout session ${session.id} did not update a subscription row`);
+          }
 
           invalidatePlanCache(clerkUserId);
-          logger.info({ clerkUserId, plan, sessionId: session.id }, "Subscription upserted from checkout");
+          logger.info(
+            { eventId: event.id, clerkUserId, plan, sessionId: session.id, rowsAffected: 1 },
+            "Subscription upserted from checkout",
+          );
         }
         break;
       }
@@ -263,8 +340,11 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
           .where(eq(subscriptionsTable.stripeCustomerId, customerId))
           .returning({ clerkUserId: subscriptionsTable.clerkUserId });
 
+        if (updated.length === 0) {
+          throw new Error(`invoice.paid could not find a subscription for customer ${customerId}`);
+        }
         for (const row of updated) invalidatePlanCache(row.clerkUserId);
-        logger.info({ customerId, updatedCount: updated.length }, "invoice.paid: refreshed currentPeriodEnd");
+        logger.info({ eventId: event.id, customerId, clerkUserId: updated[0].clerkUserId, rowsAffected: updated.length }, "invoice.paid: refreshed currentPeriodEnd");
         break;
       }
 
@@ -287,8 +367,11 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
           .where(eq(subscriptionsTable.stripeCustomerId, customerId))
           .returning({ clerkUserId: subscriptionsTable.clerkUserId });
 
+        if (updated.length === 0) {
+          throw new Error(`customer.subscription.updated could not find a subscription for customer ${customerId}`);
+        }
         for (const row of updated) invalidatePlanCache(row.clerkUserId);
-        logger.info({ customerId, status, updatedCount: updated.length }, "customer.subscription.updated: synced status");
+        logger.info({ eventId: event.id, customerId, clerkUserId: updated[0].clerkUserId, status, rowsAffected: updated.length }, "customer.subscription.updated: synced status");
 
         if (newStatus === "past_due" && previousStatus !== "past_due") {
           const stripe = getStripe();
@@ -318,12 +401,15 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
 
         const updated = await db
           .update(subscriptionsTable)
-          .set({ status: "cancelled", plan: "free", updatedAt: new Date() })
+          .set({ status: "cancelled", updatedAt: new Date() })
           .where(eq(subscriptionsTable.stripeCustomerId, customerId))
           .returning({ clerkUserId: subscriptionsTable.clerkUserId });
 
+        if (updated.length === 0) {
+          throw new Error(`customer.subscription.deleted could not find a subscription for customer ${customerId}`);
+        }
         for (const row of updated) invalidatePlanCache(row.clerkUserId);
-        logger.info({ customerId, updatedCount: updated.length }, "customer.subscription.deleted: downgraded to free");
+        logger.info({ eventId: event.id, customerId, clerkUserId: updated[0].clerkUserId, rowsAffected: updated.length }, "customer.subscription.deleted: marked cancelled");
         break;
       }
 
@@ -331,6 +417,7 @@ export async function stripeWebhookHandler(req: Request, res: Response): Promise
         logger.info({ type: event.type }, "Unhandled Stripe webhook event type");
     }
 
+    await markEventProcessed(event);
     res.json({ received: true });
   } catch (err) {
     logger.error({ err, eventType: event.type }, "Error handling Stripe webhook event");
