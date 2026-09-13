@@ -43,8 +43,15 @@ app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
 
 // Stripe webhook must be mounted with raw body BEFORE express.json()
 // Stripe requires the raw request body for signature verification
+// Mount on both paths: /api/stripe/webhook (canonical) and /api/webhook
+// (legacy — some Stripe dashboard configs point here)
 app.post(
   "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  stripeWebhookHandler,
+);
+app.post(
+  "/api/webhook",
   express.raw({ type: "application/json" }),
   stripeWebhookHandler,
 );

@@ -925,7 +925,7 @@ function BillingCard({ sub, onManageBilling }: { sub: Subscription; onManageBill
     setPortalLoading(true);
     setPortalError("");
     try {
-      const res = await fetch("/api/stripe/portal", { method: "POST", credentials: "include" });
+      const res = await fetch("/api/portal", { method: "POST", credentials: "include" });
       const data = await res.json() as { url?: string; error?: string };
       if (res.ok && data.url) {
         window.open(data.url, "_blank");
@@ -1022,7 +1022,7 @@ export default function Dashboard() {
           if (!r.ok) throw new Error("Failed to load audits");
           return r.json() as Promise<SavedAudit[]>;
         }),
-      fetch("/api/stripe/subscription", { credentials: "include" })
+      fetch("/api/subscription", { credentials: "include" })
         .then(r => r.ok ? r.json() as Promise<Subscription> : null)
         .catch(() => null),
     ])
@@ -1078,7 +1078,7 @@ export default function Dashboard() {
       {sub?.status === "past_due" && (
         <PastDueBanner onManageBilling={async () => {
           try {
-            const res = await fetch("/api/stripe/portal", { method: "POST", credentials: "include" });
+            const res = await fetch("/api/portal", { method: "POST", credentials: "include" });
             const data = await res.json() as { url?: string };
             if (res.ok && data.url) window.open(data.url, "_blank");
           } catch { /* ignore */ }

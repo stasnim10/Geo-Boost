@@ -25,7 +25,7 @@ export default function Success() {
     async function fetchSubscription() {
       try {
         const token = await getToken();
-        const res = await fetch(`${import.meta.env.BASE_URL}api/stripe/subscription`, {
+        const res = await fetch(`${import.meta.env.BASE_URL}api/subscription`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           credentials: "include",
         });

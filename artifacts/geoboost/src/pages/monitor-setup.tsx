@@ -49,7 +49,7 @@ export default function MonitorSetup() {
     }
 
     Promise.all([
-      fetch("/api/stripe/subscription", { credentials: "include" })
+      fetch("/api/subscription", { credentials: "include" })
         .then(r => r.ok ? r.json() as Promise<{ plan: string }> : { plan: "free" })
         .catch(() => ({ plan: "free" })),
       fetch("/api/monitor/setup", { credentials: "include" })
