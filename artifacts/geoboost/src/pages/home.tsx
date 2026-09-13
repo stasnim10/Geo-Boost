@@ -416,7 +416,7 @@ export default function Home() {
         <p className="text-lg md:text-xl text-slate-600 max-w-2xl mx-auto">
           Find out if ChatGPT, Claude, and Google AI are recommending your business — or sending customers to your competitors instead.
         </p>
-        <p className="text-sm text-slate-400 mt-3">No tech knowledge needed. Results in 60 seconds.</p>
+        <p className="text-sm text-slate-600 mt-3">No tech knowledge needed. Results in 60 seconds.</p>
       </div>
 
       <SimulatorSection />
@@ -440,7 +440,7 @@ export default function Home() {
               <div className="space-y-2">
                 <Label htmlFor="url" className="text-slate-700 font-semibold">Business Website URL</Label>
                 <div className="relative">
-                  <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" />
+                  <Search className="absolute left-3 top-3 h-5 w-5 text-slate-400" aria-hidden="true" />
                   <Input
                     id="url"
                     placeholder="https://yourbusiness.com"
@@ -451,7 +451,7 @@ export default function Home() {
                   />
                 </div>
                 {touched.url && !url && (
-                  <p className="text-xs text-red-600 font-medium">Please enter your business website URL.</p>
+                  <p className="text-xs text-red-600 font-medium" role="alert">Please enter your business website URL.</p>
                 )}
               </div>
 
@@ -472,13 +472,13 @@ export default function Home() {
                   )}
                 </div>
                 {touched.category && !category && (
-                  <p className="text-xs text-red-600 font-medium">Please enter your business category.</p>
+                  <p className="text-xs text-red-600 font-medium" role="alert">Please enter your business category.</p>
                 )}
                 {showSuggestion && (
                   <button
                     type="button"
                     onClick={acceptSuggestion}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-semibold hover:bg-blue-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
                   >
                     <Sparkles className="w-3 h-3" />
                     {categorySuggestion?.source === "server" ? "Detected" : "Suggested"}: {categorySuggestion?.label} — tap to use
@@ -507,7 +507,8 @@ export default function Home() {
                     onClick={handleDetectLocation}
                     disabled={detectingLocation}
                     title="Detect my location"
-                    className="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors disabled:opacity-50"
+                    aria-label="Detect my location"
+                    className="flex-shrink-0 h-12 w-12 flex items-center justify-center rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"
                   >
                     {detectingLocation
                       ? <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
@@ -517,16 +518,19 @@ export default function Home() {
               </div>
 
               {/* Queries */}
-              {/* Queries */}
               <div className="space-y-3">
-                <Label className="text-slate-700 font-semibold">What Do Your Customers Ask AI?</Label>
-                <p className="text-xs text-slate-400">Type the questions your customers ask ChatGPT or Google when looking for a business like yours.</p>
+                <Label id="queries-label" className="text-slate-700 font-semibold">What Do Your Customers Ask AI?</Label>
+                <p className="text-xs text-slate-600">Type the questions your customers ask ChatGPT or Google when looking for a business like yours.</p>
                 <div className="space-y-2">
                   {/* Query 1 — required */}
                   <div>
                     <div className="relative">
-                      <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                      <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden="true" />
                       <Input
+                        id="query1"
+                        aria-label="First customer query (required)"
+                        aria-required="true"
+                        aria-describedby={touched.query1 && !query1 ? "query1-error" : undefined}
                         placeholder="Query 1"
                         className={`pl-9 bg-slate-50 ${touched.query1 && !query1 ? "border-red-400 bg-red-50" : "border-slate-200"}`}
                         value={query1}
@@ -535,13 +539,15 @@ export default function Home() {
                       />
                     </div>
                     {touched.query1 && !query1 && (
-                      <p className="text-xs text-red-600 font-medium mt-1">At least one query is required.</p>
+                      <p id="query1-error" className="text-xs text-red-600 font-medium mt-1" role="alert">At least one query is required.</p>
                     )}
                   </div>
                   {/* Query 2 — optional */}
                   <div className="relative">
-                    <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                    <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden="true" />
                     <Input
+                      id="query2"
+                      aria-label="Second customer query (optional)"
                       placeholder="Query 2 (optional)"
                       className="pl-9 bg-slate-50 border-slate-200"
                       value={query2}
@@ -550,8 +556,10 @@ export default function Home() {
                   </div>
                   {/* Query 3 — optional */}
                   <div className="relative">
-                    <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                    <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden="true" />
                     <Input
+                      id="query3"
+                      aria-label="Third customer query (optional)"
                       placeholder="Query 3 (optional)"
                       className="pl-9 bg-slate-50 border-slate-200"
                       value={query3}
@@ -564,7 +572,7 @@ export default function Home() {
                 {querySuggestions.length > 0 && (
                   <div className="pt-1">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs text-slate-400 font-medium">
+                      <p className="text-xs text-slate-600 font-medium">
                         {aiQuerySuggestions.length > 0 ? "✨ AI-suggested queries — tap to add:" : "Tap to add a query:"}
                       </p>
                       {aiQuerySuggestions.length >= 1 && (!query1 || !query2 || !query3) && (
@@ -587,7 +595,7 @@ export default function Home() {
                             if (undoTimer.current) clearTimeout(undoTimer.current);
                             undoTimer.current = setTimeout(() => setShowUndo(false), 5000);
                           }}
-                          className="text-xs font-bold px-3 py-1 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
+                          className="text-xs font-bold px-3 py-1 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
                         >
                           Auto-fill empty slots ↑
                         </button>
@@ -606,7 +614,7 @@ export default function Home() {
                             setShowUndo(false);
                             if (undoTimer.current) clearTimeout(undoTimer.current);
                           }}
-                          className="font-bold underline hover:no-underline"
+                          className="font-bold underline hover:no-underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-slate-800 rounded"
                         >
                           Undo
                         </button>
@@ -621,7 +629,7 @@ export default function Home() {
                             type="button"
                             disabled={alreadyUsed}
                             onClick={() => fillQuery(s)}
-                            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors ${
+                            className={`text-xs px-3 py-1.5 rounded-full border font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
                               alreadyUsed
                                 ? "bg-green-50 border-green-200 text-green-600 cursor-default"
                                 : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-300 hover:text-blue-700"
@@ -640,7 +648,7 @@ export default function Home() {
                 <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold bg-[#0f172a] hover:bg-slate-800 text-white">
                   Check My AI Visibility — Free
                 </Button>
-                <p className="text-center text-xs text-slate-400 mt-2">
+                <p className="text-center text-xs text-slate-600 mt-2">
                   We'll test your site against real AI models and score it in ~60 seconds.
                 </p>
               </div>
@@ -672,11 +680,11 @@ export default function Home() {
             <div key={stat} className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-5 text-center">
               <div className="text-4xl font-extrabold text-slate-900 mb-1">{stat}</div>
               <div className="text-sm font-semibold text-slate-700 leading-snug mb-1">{desc}</div>
-              <div className="text-xs text-slate-400">{sub}</div>
+              <div className="text-xs text-slate-600">{sub}</div>
             </div>
           ))}
         </div>
-        <p className="text-center text-xs text-slate-400 mt-3">Source: Surfer SEO study of 405,576 Google AI overview searches</p>
+        <p className="text-center text-xs text-slate-600 mt-3">Source: Surfer SEO study of 405,576 Google AI overview searches</p>
       </div>
 
     </div>

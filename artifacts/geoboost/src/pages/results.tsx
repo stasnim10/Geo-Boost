@@ -200,7 +200,7 @@ function ShareResultsSection({ result, category }: { result: AuditResult; catego
           </div>
           <div>
             <p className="font-semibold text-slate-900 text-sm">Share these results</p>
-            <p className="text-xs text-slate-500">Generate a public link — no sign-in required to view</p>
+            <p className="text-xs text-slate-600">Generate a public link — no sign-in required to view</p>
           </div>
         </div>
 
@@ -242,9 +242,10 @@ function ShareResultsSection({ result, category }: { result: AuditResult; catego
               style={{ aspectRatio: "1200/630", objectFit: "cover" }}
             />
           </div>
-          <label className="block text-xs font-semibold text-slate-600 mb-2">Shareable link</label>
+          <label htmlFor="share-url" className="block text-xs font-semibold text-slate-600 mb-2">Shareable link</label>
           <div className="flex gap-2">
             <input
+              id="share-url"
               readOnly
               value={shareUrl}
               onClick={(e) => (e.target as HTMLInputElement).select()}
@@ -268,7 +269,7 @@ function ShareResultsSection({ result, category }: { result: AuditResult; catego
               {copiedImage === "copying" ? "Copying…" : copiedImage === "copied" ? "Copied!" : copiedImage === "downloaded" ? "Saved!" : "Copy image"}
             </button>
           </div>
-          <p className="text-xs text-slate-400 mt-2">Anyone with this link can view the full report — no account needed.</p>
+          <p className="text-xs text-slate-600 mt-2">Anyone with this link can view the full report — no account needed.</p>
         </div>
       )}
     </div>
@@ -335,7 +336,8 @@ function EmailResultsSection({ result, category }: { result: AuditResult; catego
     <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors text-left"
+        aria-expanded={expanded}
+        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-slate-400"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -343,7 +345,7 @@ function EmailResultsSection({ result, category }: { result: AuditResult; catego
           </div>
           <div>
             <p className="font-semibold text-slate-900 text-sm">Email these results</p>
-            <p className="text-xs text-slate-500">Send a copy to any inbox — yours or a client's</p>
+            <p className="text-xs text-slate-600">Send a copy to any inbox — yours or a client's</p>
           </div>
         </div>
         <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${expanded ? "rotate-180" : ""}`} />
@@ -351,9 +353,10 @@ function EmailResultsSection({ result, category }: { result: AuditResult; catego
 
       {expanded && (
         <div className="px-6 pb-5 border-t border-slate-100">
-          <label className="block text-xs font-semibold text-slate-600 mb-2 mt-4">Email address</label>
+          <label htmlFor="email-results-addr" className="block text-xs font-semibold text-slate-600 mb-2 mt-4">Email address</label>
           <div className="flex gap-3">
             <input
+              id="email-results-addr"
               type="email"
               value={email}
               onChange={(e) => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
@@ -374,7 +377,7 @@ function EmailResultsSection({ result, category }: { result: AuditResult; catego
           {status === "error" && (
             <p className="text-red-600 text-xs mt-2">{errorMsg}</p>
           )}
-          <p className="text-xs text-slate-400 mt-2">A formatted summary of your audit — no spam, ever.</p>
+          <p className="text-xs text-slate-600 mt-2">A formatted summary of your audit — no spam, ever.</p>
         </div>
       )}
     </div>
@@ -385,6 +388,13 @@ function WhyScoringLowModal({ result, category, onClose }: { result: AuditResult
   const score = result.aiVisibilityScore;
   const scoreLabel = score >= 70 ? "Good" : score >= 40 ? "Needs Work" : "Critical";
   const scoreColor = score >= 70 ? "text-green-600" : score >= 40 ? "text-amber-600" : "text-red-600";
+
+  // Close on Escape key
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [onClose]);
 
   const scoreExplainers = [
     {
@@ -408,23 +418,34 @@ function WhyScoringLowModal({ result, category, onClose }: { result: AuditResult
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+      role="presentation"
+    >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
         className="bg-white rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="sticky top-0 bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center" aria-hidden="true">
               <HelpCircle className="w-4 h-4 text-blue-600" />
             </div>
             <div>
-              <h2 className="font-extrabold text-slate-900 text-base">Why Is My Score {score}/100?</h2>
+              <h2 id="modal-title" className="font-extrabold text-slate-900 text-base">Why Is My Score {score}/100?</h2>
               <p className={`text-xs font-semibold ${scoreColor}`}>{scoreLabel} — here's the full breakdown</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
-            <X className="w-4 h-4 text-slate-400" />
+          <button
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+          >
+            <X className="w-4 h-4 text-slate-400" aria-hidden="true" />
           </button>
         </div>
 
@@ -539,7 +560,7 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
       </div>
 
       {result.error ? (
-        <p className="text-xs text-slate-500 italic">Could not get a response from this model.</p>
+        <p className="text-xs text-slate-600 italic">Could not get a response from this model.</p>
       ) : (
         <>
           {result.excerpt && (
@@ -549,7 +570,7 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
           {/* Competitors ranked ahead of you */}
           {!result.mentioned && result.businesses.length > 0 && (
             <div className="mb-3">
-              <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">Instead Recommended</p>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">Instead Recommended</p>
               <div className="space-y-1">
                 {result.businesses.slice(0, 4).map((b, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -574,7 +595,7 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
 
           {result.businesses.length > 0 && result.mentioned && (
             <div className="mb-3">
-              <p className="text-xs font-semibold text-slate-500 mb-1.5 uppercase tracking-wide">All Recommendations</p>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wide">All Recommendations</p>
               <div className="space-y-1">
                 {result.businesses.slice(0, 5).map((b, i) => (
                   <div key={i} className="flex items-center gap-2">
@@ -593,7 +614,7 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
           {/* Cited source URLs */}
           {result.sources.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-400 mb-1 uppercase tracking-wide">Sources Used</p>
+              <p className="text-xs font-semibold text-slate-600 mb-1 uppercase tracking-wide">Sources Used</p>
               <div className="space-y-0.5">
                 {result.sources.slice(0, 3).map((src, i) => {
                   let hostname = src;
@@ -612,7 +633,7 @@ function CitationModelCard({ result, domain }: { result: AuditCitationQueryResul
           )}
 
           {result.businesses.length === 0 && !result.mentioned && (
-            <p className="text-xs text-slate-400 italic">No specific businesses were recommended for this query.</p>
+            <p className="text-xs text-slate-600 italic">No specific businesses were recommended for this query.</p>
           )}
         </>
       )}
@@ -636,7 +657,7 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
         <div className="bg-slate-50 px-6 py-8 text-center">
           <Lock className="w-8 h-8 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-700 font-semibold text-sm mb-1">Live Citation Testing Included on Monitor & Grow</p>
-          <p className="text-slate-500 text-xs mb-4 max-w-md mx-auto">
+          <p className="text-slate-600 text-xs mb-4 max-w-md mx-auto">
             Upgrade to see exactly which queries each AI model cited you for, and which competitors they recommended instead.
           </p>
           <Link href="/pricing">
@@ -690,7 +711,7 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
               </div>
               <div>
                 <p className="text-sm font-bold text-slate-800">"{queryResult.query}"</p>
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-600 mt-0.5">
                   Cited in {queryResult.results.filter(r => r.mentioned).length}/{queryResult.results.length} model{queryResult.results.length !== 1 ? "s" : ""}
                 </p>
               </div>
@@ -710,7 +731,7 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
               <Lock className="w-5 h-5 text-slate-300 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
                 <p className="text-sm font-bold text-slate-700 mb-1">3 More Models Tested on Monitor & Grow</p>
-                <p className="text-xs text-slate-500 mb-3">
+                <p className="text-xs text-slate-600 mb-3">
                   You're seeing Claude results only. Upgrade to also test ChatGPT, Gemini, and Perplexity — the 3 models your customers actually use most.
                 </p>
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -821,7 +842,7 @@ function SaveResultsBanner({ onDismiss }: { onDismiss: () => void }) {
       </Link>
       <button
         onClick={onDismiss}
-        className="flex-shrink-0 p-1 hover:bg-white/20 rounded-lg transition-colors"
+        className="flex-shrink-0 p-1 hover:bg-white/20 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-1 focus-visible:ring-offset-green-500"
         aria-label="Dismiss"
       >
         <X className="w-4 h-4" />
@@ -881,24 +902,28 @@ function EmailGate({ result, category, onUnlock }: { result: AuditResult; catego
         <form onSubmit={submit} className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-600">Your Name</label>
+              <label htmlFor="gate-name" className="block text-xs font-semibold text-slate-600">Your Name</label>
               <input
+                id="gate-name"
                 type="text"
                 value={name}
                 onChange={e => { setName(e.target.value); if (status === "error") setStatus("idle"); }}
                 placeholder="Jane Doe"
                 required
+                aria-required="true"
                 className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
             <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-slate-600">Work Email</label>
+              <label htmlFor="gate-email" className="block text-xs font-semibold text-slate-600">Work Email</label>
               <input
+                id="gate-email"
                 type="email"
                 value={email}
                 onChange={e => { setEmail(e.target.value); if (status === "error") setStatus("idle"); }}
                 placeholder="jane@company.com"
                 required
+                aria-required="true"
                 className="w-full px-4 py-2.5 text-sm border border-slate-200 rounded-lg bg-slate-50 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
               />
             </div>
@@ -916,7 +941,7 @@ function EmailGate({ result, category, onUnlock }: { result: AuditResult; catego
               {status === "sending" && <Loader2 className="w-4 h-4 animate-spin" />}
               {status === "sending" ? "Unlocking…" : "Unlock full report →"}
             </button>
-            <p className="text-xs text-slate-400">No spam. We'll also send a copy to your inbox.</p>
+            <p className="text-xs text-slate-600">No spam. We'll also send a copy to your inbox.</p>
           </div>
         </form>
       </div>
@@ -1015,13 +1040,14 @@ export default function Results() {
 
       {/* Category badge with inline edit */}
       <div className="mb-8 flex items-center justify-center gap-2 flex-wrap">
-        <span className="text-sm text-slate-500">Business type:</span>
+        <span className="text-sm text-slate-600">Business type:</span>
         {editingCategory ? (
           <select
             value={category}
             onChange={e => { setCategory(e.target.value); setEditingCategory(false); }}
             onBlur={() => setEditingCategory(false)}
             autoFocus
+            aria-label="Select business category"
             className="text-sm font-semibold border border-blue-300 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
           >
             {CATEGORY_LIST.map(cat => (
@@ -1031,14 +1057,15 @@ export default function Results() {
         ) : (
           <button
             onClick={() => setEditingCategory(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition-colors"
+            aria-label={`Edit business category: currently ${category}`}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-sm font-semibold hover:bg-blue-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
           >
             {category}
             <Pencil className="w-3 h-3" />
           </button>
         )}
         {category !== "your industry" && (
-          <span className="text-xs text-slate-400">— tap the label to correct it</span>
+          <span className="text-xs text-slate-600">— tap the label to correct it</span>
         )}
       </div>
 
@@ -1074,7 +1101,7 @@ export default function Results() {
       <div className="mb-6 bg-white rounded-2xl shadow-sm border border-slate-200 p-8 flex flex-col md:flex-row items-center justify-between">
         <div className="text-center md:text-left mb-6 md:mb-0">
           <h2 className="text-xl font-bold text-slate-900 mb-1">How Often AI Recommends You</h2>
-          <p className="text-slate-500 max-w-md">Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor.</p>
+          <p className="text-slate-600 max-w-md">Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor.</p>
           <button
             onClick={() => setModalOpen(true)}
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2 transition-colors"
@@ -1099,13 +1126,13 @@ export default function Results() {
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
               <h3 className="font-semibold text-slate-700 mb-4">Content Depth</h3>
               <Gauge value={result.semanticDensityScore} size={120} strokeWidth={10} />
-              <p className="text-xs text-slate-500 text-center mt-4">How well your page answers the questions AI gets asked about your business</p>
+              <p className="text-xs text-slate-600 text-center mt-4">How well your page answers the questions AI gets asked about your business</p>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
               <h3 className="font-semibold text-slate-700 mb-4">Page Readability</h3>
               <Gauge value={result.structuralFormattingScore} size={120} strokeWidth={10} />
-              <p className="text-xs text-slate-500 text-center mt-4">How easily AI can scan and understand your page layout</p>
+              <p className="text-xs text-slate-600 text-center mt-4">How easily AI can scan and understand your page layout</p>
             </div>
 
             <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
@@ -1132,7 +1159,7 @@ export default function Results() {
           {categoryQueries.length > 0 && (
             <div className="mb-8 bg-white rounded-2xl border border-slate-200 p-6">
               <h2 className="text-lg font-bold text-slate-900 mb-1">What Customers Ask AI About {category} Businesses</h2>
-              <p className="text-sm text-slate-500 mb-4">These are the searches AI assistants get asked in your category. Your business needs to show up in these answers.</p>
+              <p className="text-sm text-slate-600 mb-4">These are the searches AI assistants get asked in your category. Your business needs to show up in these answers.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {categoryQueries.slice(0, 6).map((q, i) => (
                   <div key={i} className="flex items-start gap-2 bg-slate-50 rounded-lg px-3 py-2.5 border border-slate-100">
@@ -1155,23 +1182,23 @@ export default function Results() {
               <div className="text-center mb-6">
                 <div className="text-5xl font-extrabold text-red-700 mb-2">{formatMoney(roi.amount)}</div>
                 <p className="text-sm text-red-800 font-medium">estimated monthly revenue going to competitors instead of you</p>
-                <p className="text-xs text-slate-500 mt-1">Based on typical search volume for {category} businesses</p>
+                <p className="text-xs text-slate-600 mt-1">Based on typical search volume for {category} businesses</p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                 <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
                   <div className="text-2xl font-extrabold text-slate-900">{roi.monthlyQueries.toLocaleString()}</div>
-                  <div className="text-xs text-slate-500 mt-1">Monthly AI searches in your category</div>
+                  <div className="text-xs text-slate-600 mt-1">Monthly AI searches in your category</div>
                 </div>
                 <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
                   <div className="text-2xl font-extrabold text-red-600">
                     {Math.round(roi.monthlyQueries * (1 - result.aiVisibilityScore / 100)).toLocaleString()}
                   </div>
-                  <div className="text-xs text-slate-500 mt-1">Searches where a competitor is recommended instead</div>
+                  <div className="text-xs text-slate-600 mt-1">Searches where a competitor is recommended instead</div>
                 </div>
                 <div className="bg-white rounded-xl border border-red-100 p-4 text-center">
                   <div className="text-2xl font-extrabold text-red-700">{invisibilityRate}%</div>
-                  <div className="text-xs text-slate-500 mt-1">Of AI searches where your competitors beat you</div>
+                  <div className="text-xs text-slate-600 mt-1">Of AI searches where your competitors beat you</div>
                 </div>
               </div>
 
