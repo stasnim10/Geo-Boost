@@ -17,6 +17,11 @@ export default function MonitorSetup() {
   const [plan, setPlan] = useState<string | null>(null);
 
   useEffect(() => {
+    document.title = "Monitor Setup — Show me on AI";
+    return () => { document.title = "Show me on AI"; };
+  }, []);
+
+  useEffect(() => {
     if (!isLoaded) return;
     if (!user) { navigate("/sign-in"); return; }
 

@@ -45,6 +45,13 @@ export default function Success() {
 
   const planLabel = plan ? (PLAN_LABELS[plan] ?? plan) : null;
 
+  useEffect(() => {
+    document.title = planLabel
+      ? `Welcome to ${planLabel} — Show me on AI`
+      : "Welcome — Show me on AI";
+    return () => { document.title = "Show me on AI"; };
+  }, [planLabel]);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] py-20 px-4 text-center">
       <div className="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center mb-8">

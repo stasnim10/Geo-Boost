@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { CheckCircle2, Loader2, Zap, Globe, BarChart2, Users } from "lucide-react";
 
@@ -8,6 +8,11 @@ export default function Upgrade() {
   const [form, setForm] = useState({ name: "", email: "", websiteUrl: "", platform: "" });
   const [status, setStatus] = useState<"idle" | "submitting" | "done" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    document.title = "Upgrade — Show me on AI";
+    return () => { document.title = "Show me on AI"; };
+  }, []);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

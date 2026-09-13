@@ -74,6 +74,19 @@ export default function Optimizer() {
     } catch { /* ignore */ }
   }, []);
 
+  useEffect(() => {
+    if (auditCtx?.url) {
+      const domain = (() => {
+        try { return new URL(auditCtx.url.startsWith("http") ? auditCtx.url : `https://${auditCtx.url}`).hostname.replace(/^www\./, ""); }
+        catch { return auditCtx.url; }
+      })();
+      document.title = `Content Optimizer — ${domain} — Show me on AI`;
+    } else {
+      document.title = "Content Optimizer — Show me on AI";
+    }
+    return () => { document.title = "Show me on AI"; };
+  }, [auditCtx]);
+
   const autoFetch = async () => {
     if (!auditCtx?.url) return;
     setFetchingContent(true);

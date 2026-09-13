@@ -502,6 +502,16 @@ export default function FixPage() {
     setUnlocked(isUnlocked);
   }, [navigate]);
 
+  useEffect(() => {
+    if (!ctx) return;
+    const domain = (() => {
+      try { return new URL(ctx.url.startsWith("http") ? ctx.url : `https://${ctx.url}`).hostname.replace(/^www\./, ""); }
+      catch { return ctx.url; }
+    })();
+    document.title = `AI Fix Package — ${domain} — Show me on AI`;
+    return () => { document.title = "Show me on AI"; };
+  }, [ctx]);
+
   const startCheckout = async () => {
     setCheckoutLoading(true);
     try {

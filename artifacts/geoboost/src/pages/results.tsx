@@ -853,6 +853,16 @@ export default function Results() {
     }
   }, [setLocation]);
 
+  useEffect(() => {
+    if (!result) return;
+    const domain = (() => {
+      try { return new URL(result.scrapedUrl.startsWith("http") ? result.scrapedUrl : `https://${result.scrapedUrl}`).hostname.replace(/^www\./, ""); }
+      catch { return result.scrapedUrl; }
+    })();
+    document.title = `${domain} — AI Score: ${result.aiVisibilityScore}/100 — Show me on AI`;
+    return () => { document.title = "Show me on AI"; };
+  }, [result]);
+
   if (!result) return null;
 
   const bingIndexed = (result as AuditResult & { bingIndexed?: boolean }).bingIndexed;

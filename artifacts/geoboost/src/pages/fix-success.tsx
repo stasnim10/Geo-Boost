@@ -6,6 +6,7 @@ export default function FixSuccess() {
   const [, navigate] = useLocation();
 
   useEffect(() => {
+    document.title = "Payment Successful — Show me on AI";
     sessionStorage.setItem("fix_unlocked", "true");
     const t = setTimeout(() => navigate("/fix"), 800);
     return () => clearTimeout(t);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { CheckCircle2, Loader2, X, Zap, Search, TrendingUp, Users } from "lucide-react";
 
@@ -114,6 +114,11 @@ const TIERS: Tier[] = [
 export default function Pricing() {
   const [loading, setLoading] = useState<string | null>(null);
   const [billing, setBilling] = useState<BillingCycle>("monthly");
+
+  useEffect(() => {
+    document.title = "Pricing — Show me on AI";
+    return () => { document.title = "Show me on AI"; };
+  }, []);
 
   const handleCta = async (action: CtaAction) => {
     if (action === "free") return;

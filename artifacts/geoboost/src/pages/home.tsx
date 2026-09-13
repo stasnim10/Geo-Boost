@@ -221,6 +221,9 @@ function quickDetect(rawUrl: string): string | null {
 }
 
 export default function Home() {
+  useEffect(() => {
+    document.title = "Show me on AI";
+  }, []);
   const [, navigate] = useLocation();
   const runAudit = useRunAudit();
   const { user, isSignedIn } = useUser();

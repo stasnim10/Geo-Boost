@@ -1,7 +1,13 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { XCircle } from "lucide-react";
 
 export default function Cancel() {
+  useEffect(() => {
+    document.title = "Payment Cancelled — Show me on AI";
+    return () => { document.title = "Show me on AI"; };
+  }, []);
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[70vh] py-20 px-4 text-center">
       <div className="w-20 h-20 rounded-full bg-slate-100 flex items-center justify-center mb-8">

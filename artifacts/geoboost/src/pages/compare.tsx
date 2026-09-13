@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { Check, X, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,11 @@ function Cell({ value }: { value: boolean | string }) {
 }
 
 export default function Compare() {
+  useEffect(() => {
+    document.title = "Compare Plans — Show me on AI";
+    return () => { document.title = "Show me on AI"; };
+  }, []);
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-14">
       <div className="text-center mb-10">

@@ -1011,6 +1011,11 @@ export default function Dashboard() {
   const [sub, setSub] = useState<Subscription | null>(null);
 
   useEffect(() => {
+    document.title = "Dashboard — Show me on AI";
+    return () => { document.title = "Show me on AI"; };
+  }, []);
+
+  useEffect(() => {
     Promise.all([
       fetch("/api/audits", { credentials: "include" })
         .then(async (r) => {
