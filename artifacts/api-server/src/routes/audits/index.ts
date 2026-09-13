@@ -243,6 +243,11 @@ function buildOgHtml(params: {
   const pageUrl = escapeHtml(`${appUrl}/api/audits/shared/${token}`);
   const domainEscaped = escapeHtml(domain);
 
+  const scoreColorHex = scoreColor(score);
+  const scoreLabelText = escapeHtml(label);
+  const scoreBadgeBg = score >= 70 ? "#dcfce7" : score >= 40 ? "#fef3c7" : "#fee2e2";
+  const scoreBadgeText = score >= 70 ? "#15803d" : score >= 40 ? "#b45309" : "#b91c1c";
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -274,10 +279,159 @@ function buildOgHtml(params: {
 
   <!-- Redirect real visitors to the interactive SPA page -->
   <meta http-equiv="refresh" content="0; url=${spaUrl}" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    body {
+      min-height: 100vh;
+      background: #0f172a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 20px;
+      padding: 40px 48px;
+      max-width: 420px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+    .brand-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex-shrink: 0;
+    }
+    .brand-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #22c55e;
+      letter-spacing: 0.02em;
+    }
+    .score-ring {
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+    }
+    .score-ring svg { transform: rotate(-90deg); }
+    .score-value {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .score-number {
+      font-size: 36px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+    }
+    .score-out {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      background: ${scoreBadgeBg};
+      color: ${scoreBadgeText};
+    }
+    .domain {
+      font-size: 18px;
+      font-weight: 800;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+      word-break: break-all;
+    }
+    .category {
+      font-size: 13px;
+      color: #64748b;
+      margin-bottom: 28px;
+    }
+    .loading-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid #334155;
+      border-top-color: #22c55e;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    .skip-link {
+      display: block;
+      margin-top: 20px;
+      font-size: 12px;
+      color: #475569;
+    }
+    .skip-link a { color: #22c55e; text-decoration: none; }
+    .skip-link a:hover { text-decoration: underline; }
+  </style>
   <script>window.location.replace(${JSON.stringify(rawSpaUrl)});</script>
 </head>
 <body>
-  <p>Redirecting to <a href="${spaUrl}">${title}</a>&#x2026;</p>
+  <div class="card">
+    <div class="brand">
+      <span class="brand-dot"></span>
+      <span class="brand-name">Show me on AI</span>
+    </div>
+
+    <div class="score-ring">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="60" cy="60" r="50" fill="none" stroke="#334155" stroke-width="10"/>
+        <circle cx="60" cy="60" r="50" fill="none" stroke="${scoreColorHex}" stroke-width="10"
+          stroke-dasharray="${(2 * Math.PI * 50).toFixed(2)}"
+          stroke-dashoffset="${((2 * Math.PI * 50) * (1 - Math.max(0, Math.min(100, score)) / 100)).toFixed(2)}"
+          stroke-linecap="round"/>
+      </svg>
+      <div class="score-value">
+        <span class="score-number">${score}</span>
+        <span class="score-out">/ 100</span>
+      </div>
+    </div>
+
+    <div class="badge">${scoreLabelText}</div>
+
+    <div class="domain">${domainEscaped}</div>
+    <div class="category">AI Visibility Report</div>
+
+    <div class="loading-row">
+      <div class="spinner"></div>
+      <span>Loading your full report…</span>
+    </div>
+
+    <div class="skip-link">
+      Not redirecting? <a href="${spaUrl}">Open report</a>
+    </div>
+  </div>
 </body>
 </html>`;
 }

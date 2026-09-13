@@ -56,6 +56,25 @@ export default function SharedResultsPage() {
       .catch(() => { setError("Failed to load results. Please try again."); setLoading(false); });
   }, [token]);
 
+  useEffect(() => {
+    if (!result) return;
+    const label = result.aiVisibilityScore >= 70 ? "Good" : result.aiVisibilityScore >= 40 ? "Needs Work" : "Critical";
+    const domain = (() => {
+      try { return new URL(result.url.startsWith("http") ? result.url : `https://${result.url}`).hostname.replace(/^www\./, ""); }
+      catch { return result.url; }
+    })();
+    const pageTitle = `${domain} scored ${result.aiVisibilityScore}/100 on AI Visibility`;
+    const pageDescription = `${label} — See how well ${domain} is positioned to appear in ChatGPT, Claude, and Perplexity answers. Full AI visibility audit report.`;
+    document.title = pageTitle;
+    let metaDesc = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement("meta");
+      metaDesc.name = "description";
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.content = pageDescription;
+  }, [result]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60dvh]">
