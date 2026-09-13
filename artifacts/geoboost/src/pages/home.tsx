@@ -241,11 +241,20 @@ export default function Home() {
   const [query2, setQuery2] = useState("");
   const [query3, setQuery3] = useState("");
 
+  // Inline validation
+  const [touched, setTouched] = useState({ url: false, category: false, query1: false });
+
+  // Undo toast for auto-fill
+  const [undoSnapshot, setUndoSnapshot] = useState<[string, string, string] | null>(null);
+  const [showUndo, setShowUndo] = useState(false);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // For signed-in users we still pass name/email to the audit API so the welcome email fires
   const clerkName = isSignedIn && user ? (user.fullName || user.firstName || "") : "";
   const clerkEmail = isSignedIn && user ? (user.emailAddresses[0]?.emailAddress || "") : "";
 
   const urlDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const categoryDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Extract city from location string for personalizing query chips
   const city = location.split(",")[0].trim();
@@ -263,7 +272,7 @@ export default function Home() {
     const quick = quickDetect(url);
     if (quick) setCategorySuggestion({ label: quick, source: "quick" });
 
-    // Server-side refinement after 800ms — now also returns AI query suggestions
+    // Server-side refinement after 500ms — detects category and returns AI query suggestions
     urlDebounce.current = setTimeout(async () => {
       try {
         const normalized = url.startsWith("http") ? url : `https://${url}`;
@@ -286,10 +295,37 @@ export default function Home() {
       } catch { /* ignore */ } finally {
         setDetectingCategory(false);
       }
-    }, 800);
+    }, 500);
 
     return () => { if (urlDebounce.current) clearTimeout(urlDebounce.current); };
   }, [url]);
+
+  // Proactively fetch AI query suggestions when the user types/selects a category
+  // (if url is already populated and server hasn't already returned suggestions)
+  useEffect(() => {
+    if (categoryDebounce.current) clearTimeout(categoryDebounce.current);
+    if (!category || !url || aiQuerySuggestions.length > 0) return;
+
+    categoryDebounce.current = setTimeout(async () => {
+      try {
+        const normalized = url.startsWith("http") ? url : `https://${url}`;
+        new URL(normalized);
+        const res = await fetch("/api/geoboost/detect-category", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: normalized }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { category: string | null; confidence: string; queries?: string[] };
+          if (data.queries && data.queries.length > 0) {
+            setAiQuerySuggestions(data.queries);
+          }
+        }
+      } catch { /* ignore */ }
+    }, 500);
+
+    return () => { if (categoryDebounce.current) clearTimeout(categoryDebounce.current); };
+  }, [category]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const acceptSuggestion = () => {
     if (categorySuggestion) {
@@ -327,15 +363,26 @@ export default function Home() {
     );
   };
 
+  // Build exactly 3 queries, padding with suggestions or repeats if user left q2/q3 blank
+  const getQueriesForSubmit = (): [string, string, string] => {
+    const pool = querySuggestions.filter(s => s !== query1 && s !== query2 && s !== query3);
+    const q2 = query2 || pool[0] || query1;
+    const q3 = query3 || pool[1] || q2;
+    return [query1, q2, q3];
+  };
+
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url || !category || !query1 || !query2 || !query3) return;
+    // Mark all required fields as touched to show inline errors
+    setTouched({ url: true, category: true, query1: true });
+    if (!url || !category || !query1) return;
+    const queries = getQueriesForSubmit();
     runAudit.mutate(
       {
         data: {
           url,
           category,
-          queries: [query1, query2, query3],
+          queries,
           location: location || undefined,
           // Pass Clerk details for signed-in users so the welcome email fires immediately;
           // anonymous users are captured by the email gate on the results page instead.
@@ -346,7 +393,7 @@ export default function Home() {
       {
         onSuccess: (result) => {
           sessionStorage.setItem("geoboost_audit_result", JSON.stringify(result));
-          sessionStorage.setItem("geoboost_audit_queries", JSON.stringify([query1, query2, query3]));
+          sessionStorage.setItem("geoboost_audit_queries", JSON.stringify(queries));
           sessionStorage.setItem("geoboost_audit_category", category);
           navigate("/results");
         },
@@ -397,12 +444,15 @@ export default function Home() {
                   <Input
                     id="url"
                     placeholder="https://yourbusiness.com"
-                    className="pl-10 h-12 bg-slate-50 border-slate-200 focus-visible:ring-blue-500 text-lg"
+                    className={`pl-10 h-12 bg-slate-50 focus-visible:ring-blue-500 text-lg ${touched.url && !url ? "border-red-400 bg-red-50" : "border-slate-200"}`}
                     value={url}
-                    onChange={e => setUrl(e.target.value)}
-                    required
+                    onChange={e => { setUrl(e.target.value); if (touched.url) setTouched(t => ({ ...t, url: true })); }}
+                    onBlur={() => setTouched(t => ({ ...t, url: true }))}
                   />
                 </div>
+                {touched.url && !url && (
+                  <p className="text-xs text-red-600 font-medium">Please enter your business website URL.</p>
+                )}
               </div>
 
               {/* Category */}
@@ -412,15 +462,18 @@ export default function Home() {
                   <Input
                     id="category"
                     placeholder="e.g. B2B SaaS, Boutique Coffee Roaster"
-                    className="h-12 bg-slate-50 border-slate-200 focus-visible:ring-blue-500 pr-8"
+                    className={`h-12 bg-slate-50 focus-visible:ring-blue-500 pr-8 ${touched.category && !category ? "border-red-400 bg-red-50" : "border-slate-200"}`}
                     value={category}
                     onChange={e => { setCategory(e.target.value); setCategorySuggestion(null); }}
-                    required
+                    onBlur={() => setTouched(t => ({ ...t, category: true }))}
                   />
                   {detectingCategory && (
                     <Loader2 className="absolute right-3 top-3.5 w-4 h-4 text-slate-400 animate-spin" />
                   )}
                 </div>
+                {touched.category && !category && (
+                  <p className="text-xs text-red-600 font-medium">Please enter your business category.</p>
+                )}
                 {showSuggestion && (
                   <button
                     type="button"
@@ -464,26 +517,47 @@ export default function Home() {
               </div>
 
               {/* Queries */}
+              {/* Queries */}
               <div className="space-y-3">
                 <Label className="text-slate-700 font-semibold">What Do Your Customers Ask AI?</Label>
                 <p className="text-xs text-slate-400">Type the questions your customers ask ChatGPT or Google when looking for a business like yours.</p>
                 <div className="space-y-2">
-                  {[
-                    { val: query1, set: setQuery1, ph: "Query 1" },
-                    { val: query2, set: setQuery2, ph: "Query 2" },
-                    { val: query3, set: setQuery3, ph: "Query 3" },
-                  ].map(({ val, set, ph }, i) => (
-                    <div key={i} className="relative">
+                  {/* Query 1 — required */}
+                  <div>
+                    <div className="relative">
                       <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
                       <Input
-                        placeholder={ph}
-                        className="pl-9 bg-slate-50 border-slate-200"
-                        value={val}
-                        onChange={e => set(e.target.value)}
-                        required
+                        placeholder="Query 1"
+                        className={`pl-9 bg-slate-50 ${touched.query1 && !query1 ? "border-red-400 bg-red-50" : "border-slate-200"}`}
+                        value={query1}
+                        onChange={e => setQuery1(e.target.value)}
+                        onBlur={() => setTouched(t => ({ ...t, query1: true }))}
                       />
                     </div>
-                  ))}
+                    {touched.query1 && !query1 && (
+                      <p className="text-xs text-red-600 font-medium mt-1">At least one query is required.</p>
+                    )}
+                  </div>
+                  {/* Query 2 — optional */}
+                  <div className="relative">
+                    <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Query 2 (optional)"
+                      className="pl-9 bg-slate-50 border-slate-200"
+                      value={query2}
+                      onChange={e => setQuery2(e.target.value)}
+                    />
+                  </div>
+                  {/* Query 3 — optional */}
+                  <div className="relative">
+                    <Crosshair className="absolute left-3 top-3.5 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Query 3 (optional)"
+                      className="pl-9 bg-slate-50 border-slate-200"
+                      value={query3}
+                      onChange={e => setQuery3(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 {/* Suggestion chips */}
@@ -493,21 +567,51 @@ export default function Home() {
                       <p className="text-xs text-slate-400 font-medium">
                         {aiQuerySuggestions.length > 0 ? "✨ AI-suggested queries — tap to add:" : "Tap to add a query:"}
                       </p>
-                      {aiQuerySuggestions.length >= 3 && (!query1 || !query2 || !query3) && (
+                      {aiQuerySuggestions.length >= 1 && (!query1 || !query2 || !query3) && (
                         <button
                           type="button"
                           onClick={() => {
-                            const top3 = aiQuerySuggestions.slice(0, 3);
-                            setQuery1(top3[0] ?? query1);
-                            setQuery2(top3[1] ?? query2);
-                            setQuery3(top3[2] ?? query3);
+                            const suggestions = aiQuerySuggestions.slice(0, 3);
+                            // Only fill empty slots — never overwrite text the user typed
+                            const newQ1 = query1 || suggestions[0] || query1;
+                            const newQ2 = query2 || suggestions[1] || query2;
+                            const newQ3 = query3 || suggestions[2] || query3;
+                            const changed = newQ1 !== query1 || newQ2 !== query2 || newQ3 !== query3;
+                            if (!changed) return;
+                            // Snapshot for undo
+                            setUndoSnapshot([query1, query2, query3]);
+                            setQuery1(newQ1);
+                            setQuery2(newQ2);
+                            setQuery3(newQ3);
+                            setShowUndo(true);
+                            if (undoTimer.current) clearTimeout(undoTimer.current);
+                            undoTimer.current = setTimeout(() => setShowUndo(false), 5000);
                           }}
                           className="text-xs font-bold px-3 py-1 rounded-full bg-blue-600 text-white hover:bg-blue-700 transition-colors whitespace-nowrap"
                         >
-                          Auto-fill all 3 ↑
+                          Auto-fill empty slots ↑
                         </button>
                       )}
                     </div>
+                    {/* Undo toast */}
+                    {showUndo && undoSnapshot && (
+                      <div className="flex items-center gap-3 mb-2 px-3 py-2 rounded-lg bg-slate-800 text-white text-xs">
+                        <span className="flex-1">Queries filled</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuery1(undoSnapshot[0]);
+                            setQuery2(undoSnapshot[1]);
+                            setQuery3(undoSnapshot[2]);
+                            setShowUndo(false);
+                            if (undoTimer.current) clearTimeout(undoTimer.current);
+                          }}
+                          className="font-bold underline hover:no-underline"
+                        >
+                          Undo
+                        </button>
+                      </div>
+                    )}
                     <div className="flex flex-wrap gap-2">
                       {querySuggestions.map((s, i) => {
                         const alreadyUsed = [query1, query2, query3].includes(s);
@@ -532,9 +636,14 @@ export default function Home() {
                 )}
               </div>
 
-              <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold bg-[#0f172a] hover:bg-slate-800 text-white">
-                Check My AI Visibility — Free
-              </Button>
+              <div>
+                <Button type="submit" size="lg" className="w-full h-14 text-lg font-bold bg-[#0f172a] hover:bg-slate-800 text-white">
+                  Check My AI Visibility — Free
+                </Button>
+                <p className="text-center text-xs text-slate-400 mt-2">
+                  We'll test your site against real AI models and score it in ~60 seconds.
+                </p>
+              </div>
             </form>
           )}
         </div>
