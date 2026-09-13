@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useRunAudit } from "@workspace/api-client-react";
 import { ShieldAlert, Crosshair, Search, Loader2, Sparkles, MapPin, LocateFixed } from "lucide-react";
 import SimulatorSection from "@/components/SimulatorSection";
+import { trackEvent } from "@/lib/track-event";
 
 // ─── Query suggestions per category ─────────────────────────────────────────
 export const QUERY_SUGGESTIONS: Record<string, string[]> = {
@@ -249,6 +250,11 @@ export default function Home() {
   const [showUndo, setShowUndo] = useState(false);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Submit error state (rate limit, generic, etc.)
+  const [submitError, setSubmitError] = useState<"free_limit_reached" | "generic" | null>(null);
+  // Track that form_start has only fired once
+  const hasTrackedStart = useRef(false);
+
   // For signed-in users we still pass name/email to the audit API so the welcome email fires
   const clerkName = isSignedIn && user ? (user.fullName || user.firstName || "") : "";
   const clerkEmail = isSignedIn && user ? (user.emailAddresses[0]?.emailAddress || "") : "";
@@ -373,10 +379,19 @@ export default function Home() {
 
   const handleNext = (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
     // Mark all required fields as touched to show inline errors
     setTouched({ url: true, category: true, query1: true });
     if (!url || !category || !query1) return;
     const queries = getQueriesForSubmit();
+
+    // Analytics: form submitted
+    const domain = (() => {
+      try { return new URL(url.startsWith("http") ? url : `https://${url}`).hostname.replace(/^www\./, ""); }
+      catch { return url; }
+    })();
+    trackEvent("form_submit", { domain, category, has_location: !!location });
+
     runAudit.mutate(
       {
         data: {
@@ -396,6 +411,14 @@ export default function Home() {
           sessionStorage.setItem("geoboost_audit_queries", JSON.stringify(queries));
           sessionStorage.setItem("geoboost_audit_category", category);
           navigate("/results");
+        },
+        onError: (error: unknown) => {
+          const apiErr = error as { status?: number; data?: { error?: string } };
+          if (apiErr.status === 429 || apiErr.data?.error === "free_limit_reached") {
+            setSubmitError("free_limit_reached");
+          } else {
+            setSubmitError("generic");
+          }
         },
       }
     );
@@ -446,7 +469,14 @@ export default function Home() {
                     placeholder="https://yourbusiness.com"
                     className={`pl-10 h-12 bg-slate-50 focus-visible:ring-blue-500 text-lg ${touched.url && !url ? "border-red-400 bg-red-50" : "border-slate-200"}`}
                     value={url}
-                    onChange={e => { setUrl(e.target.value); if (touched.url) setTouched(t => ({ ...t, url: true })); }}
+                    onChange={e => {
+                      setUrl(e.target.value);
+                      if (touched.url) setTouched(t => ({ ...t, url: true }));
+                      if (!hasTrackedStart.current && e.target.value) {
+                        hasTrackedStart.current = true;
+                        trackEvent("form_start");
+                      }
+                    }}
                     onBlur={() => setTouched(t => ({ ...t, url: true }))}
                   />
                 </div>
@@ -651,6 +681,19 @@ export default function Home() {
                 <p className="text-center text-xs text-slate-600 mt-2">
                   We'll test your site against real AI models and score it in ~60 seconds.
                 </p>
+                {submitError === "free_limit_reached" && (
+                  <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-left">
+                    <p className="text-sm font-semibold text-amber-900">Free audit limit reached</p>
+                    <p className="text-xs text-amber-800 mt-1">
+                      You've already run a free audit for this domain this month.{" "}
+                      <a href="/sign-up" className="underline font-semibold">Create a free account</a>{" "}
+                      for unlimited audits.
+                    </p>
+                  </div>
+                )}
+                {submitError === "generic" && (
+                  <p className="text-sm text-red-600 text-center">Audit failed — please try again.</p>
+                )}
               </div>
             </form>
           )}

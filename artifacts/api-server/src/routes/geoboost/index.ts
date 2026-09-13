@@ -3,8 +3,8 @@ import { getAuth } from "@clerk/express";
 import { Resend } from "resend";
 import { RunAuditBody, OptimizeContentBody, DetectCategoryBody } from "@workspace/api-zod";
 import { anthropic } from "@workspace/integrations-anthropic-ai";
-import { db, auditsTable, citationResultsTable, sharedResultsTable, waitlistTable } from "@workspace/db";
-import { eq, count } from "drizzle-orm";
+import { db, auditsTable, citationResultsTable, sharedResultsTable, waitlistTable, freeTierAuditLogTable } from "@workspace/db";
+import { eq, count, and, gte, isNull } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { parseLLMJson } from "../../lib/parse-llm-json";
 import { requirePlan, getUserPlan } from "../../lib/plan-check";
@@ -43,6 +43,15 @@ const CATEGORY_RULES: { patterns: RegExp[]; label: string; confidence: "high" | 
   { patterns: [/shop|store|buy|product|brand|retail/], label: "Retail / E-Commerce", confidence: "low" },
   { patterns: [/market|agency|creative|design|brand/], label: "Marketing Agency", confidence: "low" },
 ];
+
+function normalizeDomain(url: string): string {
+  try {
+    const normalized = url.startsWith("http") ? url : `https://${url}`;
+    return new URL(normalized).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return url.toLowerCase();
+  }
+}
 
 function detectCategoryFromText(text: string): { category: string | null; confidence: "high" | "low" } {
   const lower = text.toLowerCase();
@@ -429,6 +438,66 @@ router.post("/geoboost/audit", async (req, res): Promise<void> => {
   const { url, category, queries, name = "", email = "", location } = parsed.data;
   req.log.info({ url, category, location, name, email }, "Starting audit");
 
+  // ── Resolve auth + plan once upfront (used for rate limiting and DB save) ──
+  const auth = getAuth(req);
+  const auditUserId = auth?.userId ?? null;
+  const clientIp =
+    (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0]?.trim() ??
+    req.ip ??
+    null;
+
+  // ── Free-tier domain rate limit (survives restarts via DB) ────────────────
+  const auditDomain = normalizeDomain(url);
+  let userPlanForRateLimit = "free";
+  if (auditUserId) {
+    try {
+      userPlanForRateLimit = (await getUserPlan(auditUserId)).plan;
+    } catch {
+      /* treat as free if plan lookup fails */
+    }
+  }
+
+  if (userPlanForRateLimit === "free") {
+    const startOfMonth = new Date();
+    startOfMonth.setUTCDate(1);
+    startOfMonth.setUTCHours(0, 0, 0, 0);
+
+    try {
+      const whereClause = auditUserId
+        ? and(
+            eq(freeTierAuditLogTable.domain, auditDomain),
+            eq(freeTierAuditLogTable.clerkUserId, auditUserId),
+            gte(freeTierAuditLogTable.createdAt, startOfMonth),
+          )
+        : clientIp
+          ? and(
+              eq(freeTierAuditLogTable.domain, auditDomain),
+              isNull(freeTierAuditLogTable.clerkUserId),
+              eq(freeTierAuditLogTable.clientIp, clientIp),
+              gte(freeTierAuditLogTable.createdAt, startOfMonth),
+            )
+          : undefined;
+
+      if (whereClause) {
+        const [{ rateLimitCount }] = await db
+          .select({ rateLimitCount: count() })
+          .from(freeTierAuditLogTable)
+          .where(whereClause);
+
+        if (rateLimitCount > 0) {
+          res.status(429).json({
+            error: "free_limit_reached",
+            message:
+              "You've already run a free audit for this domain this month. Sign up for unlimited audits.",
+          });
+          return;
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, "Rate limit check failed — allowing request through");
+    }
+  }
+
   const scrapeResult = await scrapeUrlFull(url);
   const scrapedContent = scrapeResult.text;
 
@@ -523,7 +592,6 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
     }
 
     // ── Citation testing (plan-gated) ──────────────────────────────────────
-    const auth = getAuth(req);
     let citationResults: CitationTestResult[] | null = null;
     let aiCitationScore: number | null = null;
 
@@ -582,6 +650,13 @@ Return the JSON audit result. Be specific and brutal — reference actual text f
     };
 
     req.log.info({ url, score: auditResponse.aiVisibilityScore }, "Audit complete");
+
+    // ── Log to free-tier audit log for rate limiting (fire-and-forget) ────────
+    if (userPlanForRateLimit === "free") {
+      db.insert(freeTierAuditLogTable)
+        .values({ domain: auditDomain, clerkUserId: auditUserId, clientIp })
+        .catch((err) => logger.warn({ err }, "Failed to insert free-tier audit log"));
+    }
 
     // Save to DB if user is logged in
     if (auth?.userId) {

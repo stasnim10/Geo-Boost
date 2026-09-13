@@ -5,6 +5,7 @@ import { Gauge } from "@/components/gauge";
 import { AuditResult, AuditCitationQueryResult } from "@workspace/api-client-react";
 import { AlertTriangle, TrendingUp, Zap, DollarSign, Loader2, BookmarkPlus, X, Mail, ChevronDown, CheckCircle2, Link2, Copy, Check, ShieldAlert, ShieldCheck, Bot, ChevronRight, HelpCircle, Search, Lock, Pencil, ImageDown } from "lucide-react";
 import { QUERY_SUGGESTIONS } from "./home";
+import { trackEvent } from "@/lib/track-event";
 
 const CATEGORY_LIST = Object.keys(QUERY_SUGGESTIONS).sort();
 
@@ -101,9 +102,13 @@ function useCheckout() {
 
 function CtaButton({ label, className = "" }: { label: string; className?: string }) {
   const { loading, startCheckout } = useCheckout();
+  const handleClick = () => {
+    trackEvent("cta_click", { label });
+    startCheckout();
+  };
   return (
     <button
-      onClick={startCheckout}
+      onClick={handleClick}
       disabled={loading}
       style={{ backgroundColor: loading ? undefined : "#10B981" }}
       className={`flex items-center justify-center gap-2 hover:opacity-90 text-white font-bold rounded-lg transition-opacity disabled:bg-slate-400 disabled:cursor-not-allowed ${className}`}
@@ -857,9 +862,16 @@ function EmailGate({ result, category, onUnlock }: { result: AuditResult; catego
   const [status, setStatus] = useState<"idle" | "sending" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
+  // Analytics: gate viewed
+  useEffect(() => {
+    trackEvent("gate_view", { score: result.aiVisibilityScore, category });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !email.trim()) return;
+    trackEvent("gate_submit", { score: result.aiVisibilityScore, category });
     setStatus("sending");
     try {
       const res = await fetch("/api/geoboost/send-results", {
@@ -981,8 +993,9 @@ export default function Results() {
       catch { return result.scrapedUrl; }
     })();
     document.title = `${domain} — AI Score: ${result.aiVisibilityScore}/100 — Show me on AI`;
+    trackEvent("results_view", { score: result.aiVisibilityScore, category, domain });
     return () => { document.title = "Show me on AI"; };
-  }, [result]);
+  }, [result]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!result) return null;
 

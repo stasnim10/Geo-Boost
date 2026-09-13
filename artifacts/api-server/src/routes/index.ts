@@ -5,6 +5,7 @@ import stripeRouter from "./stripe";
 import auditsRouter from "./audits";
 import monitorRouter from "./monitor";
 import citationRouter from "./citation";
+import eventsRouter from "./events";
 
 const router: IRouter = Router();
 
@@ -14,5 +15,6 @@ router.use(stripeRouter);
 router.use(auditsRouter);
 router.use(monitorRouter);
 router.use(citationRouter);
+router.use(eventsRouter);
 
 export default router;
