@@ -33,48 +33,143 @@ function toPlainEnglish(text: string): string {
   return text;
 }
 
-function estimateMonthlyLoss(score: number, category: string): { amount: number; monthlyQueries: number; conversionRate: number; avgTransaction: number } {
+/**
+ * Estimates the monthly revenue a business may be losing to competitors due to
+ * low AI visibility. Numbers are market-level benchmarks, not guarantees.
+ *
+ * Each category has a `maxAmount` cap applied after computing the raw estimate.
+ * The cap prevents absurd figures for high-ticket categories (law, real estate)
+ * where the average transaction is large but local AI search volume is modest.
+ * The raw formula can produce $50k+/month for a small law firm, which reads as
+ * a fabricated scare number and destroys credibility; the cap keeps the estimate
+ * defensible while still illustrating meaningful revenue risk.
+ */
+function estimateMonthlyLoss(score: number, category: string): {
+  amount: number;
+  monthlyQueries: number;
+  conversionRate: number;
+  avgTransaction: number;
+  isCapped: boolean;
+} {
   const cat = category.toLowerCase();
 
   let monthlyQueries = 2500;
   let conversionRate = 0.015;
   let avgTransaction = 60;
+  let maxAmount = 5_000; // conservative default cap
 
   if (cat.match(/restaurant|cafe|coffee|bar|food|pizza|burger|bakery|catering/)) {
-    monthlyQueries = 3200; conversionRate = 0.018; avgTransaction = 45;
+    monthlyQueries = 3200; conversionRate = 0.018; avgTransaction = 45;  maxAmount = 4_000;
   } else if (cat.match(/ecommerce|e-commerce|shop|store|retail|product|fashion|apparel|clothing/)) {
-    monthlyQueries = 4000; conversionRate = 0.02; avgTransaction = 85;
+    monthlyQueries = 4000; conversionRate = 0.02;  avgTransaction = 85;  maxAmount = 8_000;
   } else if (cat.match(/agency|marketing|seo|advertising|pr |media|creative/)) {
-    monthlyQueries = 1800; conversionRate = 0.008; avgTransaction = 1200;
+    monthlyQueries = 1800; conversionRate = 0.008; avgTransaction = 1200; maxAmount = 15_000;
   } else if (cat.match(/saas|software|app|platform|tech|startup|b2b/)) {
-    monthlyQueries = 3500; conversionRate = 0.012; avgTransaction = 300;
+    monthlyQueries = 3500; conversionRate = 0.012; avgTransaction = 300; maxAmount = 10_000;
   } else if (cat.match(/law|legal|attorney|lawyer/)) {
-    monthlyQueries = 1500; conversionRate = 0.01; avgTransaction = 2500;
+    monthlyQueries = 1500; conversionRate = 0.01;  avgTransaction = 2500; maxAmount = 10_000;
   } else if (cat.match(/medical|dental|doctor|health|clinic|therapy|therapist/)) {
-    monthlyQueries = 2000; conversionRate = 0.014; avgTransaction = 350;
+    monthlyQueries = 2000; conversionRate = 0.014; avgTransaction = 350; maxAmount = 5_000;
   } else if (cat.match(/real estate|realtor|property|mortgage/)) {
-    monthlyQueries = 1200; conversionRate = 0.006; avgTransaction = 8000;
+    monthlyQueries = 1200; conversionRate = 0.006; avgTransaction = 8000; maxAmount = 10_000;
   } else if (cat.match(/plumb|hvac|electric|contractor|roofing|landscap|pest|clean/)) {
-    monthlyQueries = 2200; conversionRate = 0.016; avgTransaction = 400;
+    monthlyQueries = 2200; conversionRate = 0.016; avgTransaction = 400; maxAmount = 5_000;
   } else if (cat.match(/hotel|motel|airbnb|hospitality|travel|tour/)) {
-    monthlyQueries = 3800; conversionRate = 0.022; avgTransaction = 280;
+    monthlyQueries = 3800; conversionRate = 0.022; avgTransaction = 280; maxAmount = 8_000;
   } else if (cat.match(/gym|fitness|yoga|personal train|sport/)) {
-    monthlyQueries = 1800; conversionRate = 0.02; avgTransaction = 120;
+    monthlyQueries = 1800; conversionRate = 0.02;  avgTransaction = 120; maxAmount = 3_000;
   } else if (cat.match(/consult|coach|advisor|accounting|finance|cpa/)) {
-    monthlyQueries = 1400; conversionRate = 0.009; avgTransaction = 900;
+    monthlyQueries = 1400; conversionRate = 0.009; avgTransaction = 900; maxAmount = 10_000;
   }
 
   const visibilityRate = score / 100;
   const missedQueries = monthlyQueries * (1 - visibilityRate);
-  const amount = Math.round(missedQueries * conversionRate * avgTransaction);
+  const rawAmount = Math.round(missedQueries * conversionRate * avgTransaction);
+  const amount = Math.min(rawAmount, maxAmount);
 
-  return { amount, monthlyQueries, conversionRate, avgTransaction };
+  return { amount, monthlyQueries, conversionRate, avgTransaction, isCapped: rawAmount > maxAmount };
 }
 
 function formatMoney(n: number): string {
   if (n >= 10000) return `$${(n / 1000).toFixed(0)}k`;
   if (n >= 1000) return `$${(n / 1000).toFixed(1)}k`;
   return `$${n.toLocaleString()}`;
+}
+
+/**
+ * Expandable "How is this calculated?" section shown beneath the hero ROI dollar figure.
+ * Showing the formula lets a skeptical owner (or investor) follow the math rather than
+ * treating the number as a fabricated scare figure.
+ */
+function RoiMethodologyDisclosure({
+  roi,
+  category,
+  score,
+}: {
+  roi: ReturnType<typeof estimateMonthlyLoss>;
+  category: string;
+  score: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const missedPct = Math.round(100 - score);
+  const conversionPct = (roi.conversionRate * 100).toFixed(1);
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className="text-xs text-slate-500 hover:text-slate-700 underline underline-offset-2 transition-colors inline-flex items-center gap-1"
+        aria-expanded={open}
+      >
+        <HelpCircle className="w-3 h-3" />
+        How is this calculated?
+      </button>
+
+      {open && (
+        <div className="mt-3 bg-white rounded-xl border border-red-100 p-4 text-left space-y-3">
+          <p className="text-xs font-semibold text-slate-700">Estimate methodology</p>
+
+          {/* Step-by-step formula */}
+          <div className="space-y-1.5 text-xs text-slate-700 font-mono bg-slate-50 rounded-lg p-3 border border-slate-100">
+            <div className="flex items-baseline gap-2">
+              <span className="text-slate-400 w-3 flex-shrink-0"> </span>
+              <span>{roi.monthlyQueries.toLocaleString()} AI searches/month in your category</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-slate-400 w-3 flex-shrink-0">×</span>
+              <span>{missedPct}% searches where competitors are recommended instead of you</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-slate-400 w-3 flex-shrink-0">×</span>
+              <span>{conversionPct}% of those visitors become paying customers</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-slate-400 w-3 flex-shrink-0">×</span>
+              <span>${roi.avgTransaction.toLocaleString()} average transaction value for {category}</span>
+            </div>
+            <div className="border-t border-slate-200 pt-1.5 flex items-baseline gap-2 font-semibold text-red-700">
+              <span className="text-slate-400 w-3 flex-shrink-0">=</span>
+              <span>{formatMoney(roi.amount)}/month in revenue going to competitors</span>
+            </div>
+          </div>
+
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Search volumes are market-level estimates based on industry research for{" "}
+            <strong>{category}</strong> businesses. Conversion rates reflect the share of
+            AI-referred visitors who become paying customers, drawn from industry
+            benchmarks across comparable local markets.{" "}
+            {roi.isCapped && (
+              <span>
+                The raw calculation exceeded a conservative ceiling for this category, so
+                the figure shown is the capped estimate — actual exposure may be higher.{" "}
+              </span>
+            )}
+            Your actual impact will vary by market size, location, and competition level.
+          </p>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function useCheckout() {
@@ -501,16 +596,14 @@ function WhyScoringLowModal({ result, category, onClose }: { result: AuditResult
             </p>
           </div>
 
-          {/* CTAs */}
+          {/* CTAs — Full Plan is primary, Quick Fix is secondary */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <div className="flex-1">
+              <CtaButton label="🚀 Start Full Plan — $149/mo" className="w-full py-3 text-sm" />
+            </div>
             <Link href="/fix" className="flex-1">
-              <button className="w-full py-3 bg-slate-900 text-white text-sm font-bold rounded-xl hover:bg-slate-800 transition-colors">
-                ⚡ Quick Fix Files — $49 One-Time
-              </button>
-            </Link>
-            <Link href="/pricing" className="flex-1">
               <button className="w-full py-3 bg-slate-100 text-slate-700 text-sm font-semibold rounded-xl hover:bg-slate-200 transition-colors">
-                🚀 Full Plan — $149/mo
+                ⚡ Quick Fix Files — $49
               </button>
             </Link>
           </div>
@@ -666,7 +759,7 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
             Upgrade to see exactly which queries each AI model cited you for, and which competitors they recommended instead.
           </p>
           <Link href="/pricing">
-            <button style={{ backgroundColor: "#10B981" }} className="px-5 py-2.5 text-white text-sm font-bold rounded-lg hover:opacity-90 transition-opacity">
+            <button className="px-5 py-2.5 text-emerald-700 text-sm font-bold rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition-colors">
               Upgrade to See Full Citation Data
             </button>
           </Link>
@@ -747,7 +840,7 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
                   ))}
                 </div>
                 <Link href="/pricing">
-                  <button style={{ backgroundColor: "#10B981" }} className="px-4 py-2 text-white text-xs font-bold rounded-lg hover:opacity-90 transition-opacity">
+                  <button className="px-4 py-2 text-emerald-700 text-xs font-bold rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition-colors">
                     Unlock All 4 Models — Upgrade Now
                   </button>
                 </Link>
@@ -1022,7 +1115,10 @@ export default function Results() {
     <div className="max-w-6xl mx-auto py-12 px-4 md:px-8">
       {modalOpen && <WhyScoringLowModal result={result} category={category} onClose={() => setModalOpen(false)} />}
 
-      <Show when="signed-out">
+      {/* Save Results banner — only for signed-in users (it saves to their dashboard).
+          For anonymous guests the email gate is the primary CTA; showing a competing
+          "create account" banner above the gate creates choice paralysis. */}
+      <Show when="signed-in">
         {!bannerDismissed && <SaveResultsBanner onDismiss={() => setBannerDismissed(true)} />}
       </Show>
 
@@ -1148,15 +1244,18 @@ export default function Results() {
               <p className="text-xs text-slate-600 text-center mt-4">How easily AI can scan and understand your page layout</p>
             </div>
 
-            <div className="bg-[#0f172a] rounded-xl shadow-sm border border-slate-800 p-8 flex flex-col justify-center text-white">
-              <h3 className="text-xl font-bold mb-2">Ready to fix this?</h3>
-              <p className="text-slate-300 text-sm mb-6">Start ranking in ChatGPT and Claude today.</p>
-              <CtaButton label="Optimize My Content — $149/month" className="w-full h-12 text-base" />
-              <Link href="/optimizer">
-                <span className="block text-center mt-4 text-xs font-medium text-slate-400 hover:text-white underline transition-colors cursor-pointer">
-                  or try the free optimizer tool
-                </span>
-              </Link>
+            {/* Informational card — no CTA here; primary CTA lives in the ROI section below */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center justify-between text-center">
+              <h3 className="font-semibold text-slate-700 mb-3">Issues Found</h3>
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <div className="text-5xl font-extrabold text-red-600 mb-2">{result.weaknesses.length}</div>
+                <p className="text-sm text-slate-600">
+                  specific {result.weaknesses.length === 1 ? "issue" : "issues"} holding back your AI ranking
+                </p>
+              </div>
+              <p className="text-xs text-slate-400 mt-4 pt-3 border-t border-slate-100 w-full">
+                Full breakdown below ↓
+              </p>
             </div>
           </div>
 
@@ -1195,7 +1294,10 @@ export default function Results() {
               <div className="text-center mb-6">
                 <div className="text-5xl font-extrabold text-red-700 mb-2">{formatMoney(roi.amount)}</div>
                 <p className="text-sm text-red-800 font-medium">estimated monthly revenue going to competitors instead of you</p>
-                <p className="text-xs text-slate-600 mt-1">Based on typical search volume for {category} businesses</p>
+                <p className="text-xs text-slate-600 mt-1">Based on typical market data for {category} businesses</p>
+                <div className="flex justify-center mt-1">
+                  <RoiMethodologyDisclosure roi={roi} category={category} score={result.aiVisibilityScore} />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -1295,12 +1397,9 @@ export default function Results() {
                 </div>
               </div>
               <Link href="/fix">
-                <button
-                  style={{ backgroundColor: "#22c55e" }}
-                  className="flex-shrink-0 flex items-center gap-2 px-7 py-3.5 text-white font-extrabold text-base rounded-xl hover:opacity-90 transition-opacity whitespace-nowrap shadow-lg"
-                >
+                <button className="flex-shrink-0 flex items-center gap-2 px-7 py-3.5 text-white font-bold text-base rounded-xl border-2 border-white/30 hover:border-white/70 hover:bg-white/10 transition-colors whitespace-nowrap">
                   <Zap className="w-5 h-5" />
-                  Unlock for $49
+                  Get Fix Files — $49
                 </button>
               </Link>
             </div>
@@ -1308,27 +1407,6 @@ export default function Results() {
 
           <ShareResultsSection result={result} category={category} />
           <EmailResultsSection result={result} category={category} />
-
-          {/* Bottom CTA */}
-          <div className="mt-8 bg-[#0f172a] rounded-2xl p-8 text-center text-white">
-            <div className="flex justify-center mb-3">
-              <span className="text-xs font-bold uppercase tracking-widest bg-green-500/20 text-green-400 px-3 py-1 rounded-full">
-                🚀 Full Solution · $149/month subscription
-              </span>
-            </div>
-            <h2 className="text-2xl font-extrabold mb-2">Stop losing {formatMoney(roi.amount)}/month to competitors</h2>
-            <p className="text-slate-400 mb-6 max-w-xl mx-auto">
-              Show me on AI rewrites your content to match what AI assistants want to cite — specific facts, structured answers, and direct responses to the queries your customers are already asking. Ongoing monitoring included.
-            </p>
-            <CtaButton label="Optimize My Content — $149/month" className="px-10 py-4 text-lg mx-auto" />
-            <div className="mt-4">
-              <Link href="/optimizer">
-                <span className="text-slate-400 hover:text-white text-sm underline transition-colors cursor-pointer">
-                  or try the free optimizer tool
-                </span>
-              </Link>
-            </div>
-          </div>
         </>
       )}
     </div>
