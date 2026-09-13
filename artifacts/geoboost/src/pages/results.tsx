@@ -172,6 +172,51 @@ function RoiMethodologyDisclosure({
   );
 }
 
+/**
+ * Reusable inline-expand explainer — same visual pattern as RoiMethodologyDisclosure.
+ * Mobile-safe (no absolute positioning, no hover, no clipping risk).
+ * Keyboard-accessible: focusable button, Escape to dismiss, aria-expanded on trigger.
+ */
+function ScoreExplainer({ id, label = "What does this measure?", children }: {
+  id: string;
+  label?: string;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [open]);
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-controls={id}
+        className="text-xs text-slate-400 hover:text-slate-600 underline underline-offset-2 transition-colors inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 rounded"
+      >
+        <HelpCircle className="w-3 h-3" aria-hidden="true" />
+        {label}
+      </button>
+      {open && (
+        <div
+          id={id}
+          role="region"
+          aria-label={label}
+          className="mt-2 bg-slate-50 rounded-xl border border-slate-100 p-3 text-xs text-slate-600 leading-relaxed space-y-1.5 text-left"
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function useCheckout() {
   const [loading, setLoading] = useState(false);
 
@@ -801,6 +846,13 @@ function CitationResultsSection({ citationResults, aiCitationScore, domain, isPa
       </div>
 
       <div className="bg-white px-6 py-6 space-y-8">
+        <div>
+          <ScoreExplainer id="explainer-citation-score" label="What is a Citation Score?">
+            <p>We ran your top customer search queries through real AI models and recorded whether each one named your business in its answer. The Citation Score is the percentage of those tests where you were cited — a score of 25% means you appeared in 1 out of 4 tests.</p>
+            <p className="text-green-700 font-medium">Higher is better — being cited in more than half of tests is a strong result.</p>
+            <p><strong>How to improve:</strong> Check which queries you missed below. Make sure your page directly and clearly answers those exact questions — AI cites businesses whose pages give the most relevant, specific information for what was asked.</p>
+          </ScoreExplainer>
+        </div>
         {citationResults.map((queryResult, qi) => (
           <div key={qi}>
             <div className="flex items-start gap-3 mb-4">
@@ -1211,6 +1263,13 @@ export default function Results() {
         <div className="text-center md:text-left mb-6 md:mb-0">
           <h2 className="text-xl font-bold text-slate-900 mb-1">How Often AI Recommends You</h2>
           <p className="text-slate-600 max-w-md">Out of 100 — how often AI assistants like ChatGPT recommend your business instead of a competitor.</p>
+          <div className="mt-2">
+            <ScoreExplainer id="explainer-overall-score" label="What does this score mean?">
+              <p>This score (0–100) shows how often AI assistants like ChatGPT, Claude, and Gemini would recommend your business when someone searches for what you offer. A score of 60 means AI mentions you in roughly 6 out of 10 relevant searches in your category.</p>
+              <p>It combines two signals: how often AI actually cited your business in live tests (Citation Score), and how well your website answers the questions those AI tools are being asked (Content Depth and Readability).</p>
+              <p className="text-green-700 font-medium">Higher is better — most businesses start below 40.</p>
+            </ScoreExplainer>
+          </div>
           <button
             onClick={() => setModalOpen(true)}
             className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 underline underline-offset-2 transition-colors"
@@ -1236,12 +1295,26 @@ export default function Results() {
               <h3 className="font-semibold text-slate-700 mb-4">Content Depth</h3>
               <Gauge value={result.semanticDensityScore} size={120} strokeWidth={10} />
               <p className="text-xs text-slate-600 text-center mt-4">How well your page answers the questions AI gets asked about your business</p>
+              <div className="mt-3 w-full flex justify-center">
+                <ScoreExplainer id="explainer-content-depth" label="What does this measure?">
+                  <p>This score measures how much specific, useful information your page gives AI to work with. AI assistants prefer pages with concrete details — your services, price ranges, what makes you different, and direct answers to common questions. Pages with vague marketing language ("we're the best!") or very little copy score low here.</p>
+                  <p className="text-green-700 font-medium">Higher is better.</p>
+                  <p><strong>How to improve:</strong> Add a short FAQ section and answer the questions your customers ask most — like "What do you offer?", "How much does it cost?", and "Why should I choose you?" Use specific facts, not marketing phrases.</p>
+                </ScoreExplainer>
+              </div>
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col items-center">
               <h3 className="font-semibold text-slate-700 mb-4">Page Readability</h3>
               <Gauge value={result.structuralFormattingScore} size={120} strokeWidth={10} />
               <p className="text-xs text-slate-600 text-center mt-4">How easily AI can scan and understand your page layout</p>
+              <div className="mt-3 w-full flex justify-center">
+                <ScoreExplainer id="explainer-page-readability" label="What does this measure?">
+                  <p>This score measures how easily AI can skim and pull information from your page. AI reads your site like a person skimming — it relies on headings, short paragraphs, and bullet points to find key facts quickly. Long walls of text, complex layouts, or important details buried in images score low.</p>
+                  <p className="text-green-700 font-medium">Higher is better.</p>
+                  <p><strong>How to improve:</strong> Break content into short sections with clear headings (like "Our Services" or "Why Choose Us"). Replace long paragraphs with bullet-point lists wherever possible. Put the most important information near the top of each section.</p>
+                </ScoreExplainer>
+              </div>
             </div>
 
             {/* Informational card — no CTA here; primary CTA lives in the ROI section below */}

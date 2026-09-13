@@ -1,0 +1,34 @@
+Sprint 1 is complete: the audit score now shows before the email gate (#55), the audit form UX is fixed (#56), funnel analytics + server-side rate limiting are live (#60), an accessibility pass shipped (#59), the results-page CTA hierarchy was consolidated to a single primary button (#57), and the ROI figure now has per-category sanity caps plus a "How is this calculated?" expandable disclosure (ROI slice of #58). Do NOT regress any of that. Work through the tasks below and, after each, give me a changelog and manual test steps. Flag anything touching the database or billing before executing.
+
+
+TASK A — Score tooltips (remaining half of #58, Sprint 2 lead)
+Add plain-English explanations to every score shown on the results page so a non-technical SMB owner understands what each number means and how to move it.
+Add an accessible tooltip/expander (info icon or tappable label) to each of these:
+
+Overall AI Visibility Score (0–100) — explain in one or two sentences that it reflects how often AI assistants recommend this business versus competitors for the tested queries, and that it combines citation results with content quality signals.
+Content Depth sub-score — explain it measures how thoroughly the page answers the real questions customers ask AI, and that thin/marketing-only copy scores low.
+Page Readability sub-score — explain it measures how easily an AI can parse and extract answers from the page structure (headings, lists, direct answers).
+Citation Score / "X of Y cited" — explain that this is the count of tested queries where an AI actually named this business in its answer.
+
+Requirements:
+
+Copy must be plain English, no SEO/technical jargon (match the existing product tone).
+Each tooltip should end with a directional hint ("higher is better," and for sub-scores a one-line "how to improve").
+Tooltips must be keyboard-accessible and screen-reader friendly (aria-describedby or equivalent), focusable, and dismissible with Escape — consistent with the accessibility pass from #59.
+Tooltips must not overlap or clip on mobile viewports; on small screens prefer a tap-to-expand pattern over hover.
+Reuse the existing disclosure/expander component from the ROI "How is this calculated?" panel if one exists, for visual consistency.
+
+Acceptance: every score and sub-score on the results page has a discoverable, accessible explanation; hovering/tapping reveals plain-language copy with an improvement hint; nothing clips on mobile; keyboard and screen-reader users can access and dismiss each one.
+
+
+TASK B — Regression verification of merged Sprint 1 work (do not skip)
+Before closing Sprint 2, confirm the recently merged changes still behave correctly:
+
+CTA hierarchy (#57): Confirm that in the unlocked report, exactly one filled/primary CtaButton renders ("Start Full Plan — $149/mo" in the ROI section). Confirm the SaveResults banner shows only to signed-in users, the citation upsells and the $49 Fix Package button render as clearly secondary (outlined), the duplicate bottom $149 CTA is gone, and the WhyScoringLow modal shows $149 as the green primary and $49 as slate secondary.
+ROI methodology: Confirm per-category caps apply (e.g. law and real estate cap at $10k, restaurants $4k, gyms $3k), the isCapped flag drives the honest "capped estimate" disclosure text when triggered, and the "How is this calculated?" panel shows the correct step-by-step formula for the audited category.
+
+Acceptance: provide a short report confirming each of the above renders as specified, or list any deviations.
+
+
+General rules: Preserve the plain-language tone. Keep changes scoped to the results page. After each task, output a changelog plus manual test steps I can follow to verify. Do not deploy destructive migrations without flagging first.
+
