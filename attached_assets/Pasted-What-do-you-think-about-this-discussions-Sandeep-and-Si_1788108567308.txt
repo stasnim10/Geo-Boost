@@ -1,0 +1,54 @@
+What do you think about this discussions: Sandeep and Simum discussed pivoting their business strategy toward an AI-driven decision-making tool for B2B companies.
+
+Market Insights
+
+Sandeep shared observations from a recent trip to San Francisco, noting that many YC-funded startups focus on simplifying existing solutions or targeting niche markets.
+
+
+
+
+
+He noted GTM startups using AI models to provide competitor insights and market targeting data.
+
+
+
+He observed specialized insurance companies like Kurgi focusing on tech niches, and chip manufacturers replicating large-scale computing hardware at lower costs.
+
+
+
+At Founders Inc., he saw interest in physical AI and robotics designed to reduce idle time in manufacturing processes.
+
+Product Strategy
+
+The participants discussed moving away from simple information retrieval toward a tool that assists with high-level business decisions.
+
+
+
+
+
+Instead of just providing data via tools like ChatGPT, the goal is to create a model that helps companies decide how to execute and predicts potential growth or failure branches.
+
+
+
+The core value proposition focuses on helping businesses decide faster and work more efficiently by providing multiple outcomes for specific decisions.
+
+Decision Making Challenges: A significant blocker identified is the acquisition of high-quality B2B scale data required to train such a model. Sandeep emphasized the need to research if Palantir has already dominated this space with their existing data infrastructure.
+
+Research Tasks
+
+The discussion concluded with immediate areas for investigation before proceeding to build an MVP for fundraising.
+
+
+
+
+
+Simum will research existing decision-making frameworks and identify potential points of failure for their proposed idea.
+
+
+
+Questions remain regarding how to obtain millions of data points necessary for training the model effectively without relying solely on manual human intervention or expensive training hours for robots.
+
+
+
+Will the team be able to find a way to become "data merchants" or if they should focus strictly on selling products directly to businesses?
+
