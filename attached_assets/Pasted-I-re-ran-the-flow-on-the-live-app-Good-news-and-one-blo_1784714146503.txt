@@ -1,0 +1,28 @@
+I re-ran the flow on the live app. Good news and one blocker that outranks everything else.
+
+**What I verified is working (Sprint 1 code shipped correctly):**
+
+The score-first restructure (#55) is excellent. Auditing a real law firm (morganandmorgan.com) went straight from submit → loading → **score visible (20/100) before any email gate**. The gate now sits *below* the revealed score and is reframed as "See your 3 fixes — enter your email to unlock the full report," with "Your score is above" reassurance. This is exactly the bait-and-switch fix I recommended, and it's well executed.
+
+The form UX (#56) is done: Query 1 is labeled "(required)," Queries 2–3 are labeled "(optional)," and submitting with only Query 1 was accepted. The onboarding helper ("We'll test your site against real AI models and score it in ~60 seconds") is present, and the unlock button correctly stays disabled until name + email are filled.
+
+The score explainer (#58 Task A, overall-score portion) is in and good — "What does this score mean?" expands to a plain-English explanation that names the two component signals and ends with the directional hint "Higher is better — most businesses start below 40." That matches spec. I couldn't verify the per-sub-score tooltips (Content Depth, Page Readability) because those live inside the gated report.
+
+Failed audits degrade gracefully — a non-crawlable domain returned an inline "Audit failed — please try again" rather than hanging.
+
+**The blocker (this is P0 — it's live right now):**
+
+The email gate is **hard-broken in production**. Submitting name + email shows "Email service not configured. Add a RESEND_API_KEY to enable this feature," and clicking "Unlock full report" does nothing. I traced it to the network layer — two endpoints are returning **503 Service Unavailable**:
+
+`POST /api/geoboost/send-results` → 503 (the report-unlock/email step; missing `RESEND_API_KEY`)
+`POST /api/events` → 503 (the funnel analytics from #60)
+
+Two consequences. First, **no guest can currently reach the full report** — the entire monetization path is dead behind the gate. Second, **your #60 analytics events aren't being recorded**, so any conversion measurement you're relying on to prove Sprint 1's lift is silently capturing nothing. These are 503s from missing environment config (secrets not provisioned), not code defects — the merged code looks correct; the environment just isn't wired up.
+
+**What this means for #57 and the ROI caps verification:** I could not visually confirm the single-CTA layout (#57) or the per-category ROI caps and disclosure (law $10k, restaurant $4k, gym $3k) across the three test categories, because all of that lives *inside* the unlocked report, and the gate won't open. So those remain **unverified in production** — not failed, just unreachable until the key is added.
+
+**Recommended next steps, in order:**
+
+Add the `RESEND_API_KEY` secret (and confirm whatever service backs `/api/events` is provisioned), then redeploy. Until then, both the unlock and your analytics are down. As a resilience improvement worth a quick ticket: the report-unlock and the analytics logging shouldn't hard-fail on a missing email key — the report should unlock even if the "email me a copy" side-effect fails, and analytics should never block a user action. Right now a missing integration takes down the whole primary funnel, which is fragile.
+
+Once the key's in, I'm happy to re-run all three category audits (law / restaurant / gym) end-to-end to verify the single-CTA hierarchy and the ROI caps + "How is this calculated?" disclosure behave as spec'd. Want me to write that fix up as a prompt for the Agent, or will you just drop the secret in and ping me to re-test?

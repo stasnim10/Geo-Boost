@@ -806,7 +806,11 @@ router.post("/geoboost/send-results", async (req, res): Promise<void> => {
 
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
-    res.status(503).json({ error: "Email service not configured. Add a RESEND_API_KEY to enable this feature." });
+    // Email service not wired up — still unlock the report.
+    // The gate captures the email address; delivering a copy is a side-effect.
+    // Blocking the unlock on a missing key takes down the entire funnel.
+    logger.warn({ email }, "RESEND_API_KEY not set — unlocking report without sending email");
+    res.json({ success: true, emailSent: false });
     return;
   }
 
