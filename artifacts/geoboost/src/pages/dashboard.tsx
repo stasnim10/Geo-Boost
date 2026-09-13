@@ -5,7 +5,7 @@ import {
   Loader2, TrendingUp, ExternalLink, Plus, Clock,
   Link2, Copy, Check, Mail, ChevronDown, BarChart2,
   Activity, CheckCircle2, XCircle, Settings, Send,
-  ArrowUp, ArrowDown, Minus, CreditCard, Lock,
+  ArrowUp, ArrowDown, Minus, CreditCard, Lock, ImageDown,
 } from "lucide-react";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -66,6 +66,7 @@ function AuditCard({
   const [shareStatus, setShareStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [shareUrl, setShareUrl] = useState("");
   const [copied, setCopied] = useState(false);
+  const [copiedImage, setCopiedImage] = useState<"idle" | "copying" | "copied" | "downloaded">("idle");
 
   const [email, setEmail] = useState(user?.emailAddresses[0]?.emailAddress ?? "");
   const [emailStatus, setEmailStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -98,6 +99,39 @@ function AuditCard({
     await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const copyImage = async () => {
+    if (copiedImage === "copying") return;
+    setCopiedImage("copying");
+    const imageUrl = `${shareUrl}/og-image`;
+    try {
+      if (typeof ClipboardItem !== "undefined" && navigator.clipboard?.write) {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
+        setCopiedImage("copied");
+        setTimeout(() => setCopiedImage("idle"), 2500);
+      } else {
+        const a = document.createElement("a");
+        a.href = imageUrl;
+        a.download = "ai-visibility-report.png";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setCopiedImage("downloaded");
+        setTimeout(() => setCopiedImage("idle"), 2500);
+      }
+    } catch {
+      const a = document.createElement("a");
+      a.href = imageUrl;
+      a.download = "ai-visibility-report.png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setCopiedImage("downloaded");
+      setTimeout(() => setCopiedImage("idle"), 2500);
+    }
   };
 
   const sendEmail = async () => {
@@ -263,7 +297,16 @@ function AuditCard({
                   className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${copied ? "text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"}`}
                 >
                   {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied ? "Copied!" : "Copy"}
+                  {copied ? "Copied!" : "Copy link"}
+                </button>
+                <button
+                  onClick={copyImage}
+                  disabled={copiedImage === "copying"}
+                  style={copiedImage === "copied" ? { backgroundColor: "#22c55e" } : undefined}
+                  className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${copiedImage === "copied" ? "text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"} disabled:opacity-60 disabled:cursor-wait`}
+                >
+                  {copiedImage === "copying" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : copiedImage === "copied" ? <Check className="w-3.5 h-3.5" /> : <ImageDown className="w-3.5 h-3.5" />}
+                  {copiedImage === "copying" ? "Copying…" : copiedImage === "copied" ? "Copied!" : copiedImage === "downloaded" ? "Saved!" : "Copy image"}
                 </button>
               </div>
             </div>
