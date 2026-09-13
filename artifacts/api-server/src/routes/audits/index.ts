@@ -1,3 +1,4 @@
+import { Resvg } from "@resvg/resvg-js";
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
 import { getAuth } from "@clerk/express";
 import { db, auditsTable, sharedResultsTable } from "@workspace/db";
@@ -469,9 +470,13 @@ router.get("/audits/shared/:token/og-image", async (req: Request, res: Response)
       weakness,
     });
 
-    res.setHeader("Content-Type", "image/svg+xml");
+    const resvg = new Resvg(svg, { fitTo: { mode: "width", value: 1200 } });
+    const pngData = resvg.render();
+    const pngBuffer = pngData.asPng();
+
+    res.setHeader("Content-Type", "image/png");
     res.setHeader("Cache-Control", "public, max-age=86400");
-    res.send(svg);
+    res.send(pngBuffer);
   } catch (err) {
     logger.error({ err }, "Failed to generate OG image");
     res.status(500).send("Error generating image");
